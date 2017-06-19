@@ -1,0 +1,24 @@
+Phylum,order_OTU_LM,Growth_Day_LM,Max_abundance_LM,Fold_changes_LM,rrn_copy_LM,log2rrn
+Firmicutes,01: g_Sporosarcina ,0.747968121,501,187.875,10,3.321928095
+Actinobacteria,02: g_Actinoplanes,0.366421337,858,858,4.75,2.247927513
+Bacteroidetes,03: f_Cytophagaceae,0.186831821,531.3333333,531.3333333,3,1.584962501
+Firmicutes,05: f_Paenibacillaceae,0.848595893,380,380,10.75,3.426264755
+Firmicutes,06: g_Paenibacillus,0.686288721,203,203,10.86,3.440952198
+Bacteroidetes,09: g_Sphingobacteria ,0.765226611,261.3333333,261.3333333,4,2
+Alphaproteobacteria,10: g_Aquamicrobium,0.225731932,145.6666667,145.6666667,2,1
+Alphaproteobacteria,11: g_Brevundimonas ,0.166164401,16,16,2,1
+Alphaproteobacteria,12: g_Sphingomonas,0.299033552,334.6666667,334.6666667,2.33,1.220329955
+Bacteroidetes,13: g_Pontibacter,0.779940788,235,235,3,1.584962501
+Alphaproteobacteria,14: g_Mesorhizobium ,0.24824175,149.6666667,23.63157895,2,1
+Firmicutes,17: f_Paenibacillaceae,0.103657275,198.3333333,198.3333333,10.75,3.426264755
+Verrucomicrobia,18: g_Chthoniobacter,0.276848854,125,125,1,0
+Gammaproteobacteria,19: g_Pseudoxanthomonas,0.354986664,45.33333333,45.33333333,1.5,0.584962501
+Gammaproteobacteria,20: g_Steroidobacter,0.10887715,146.6666667,146.6666667,2.28,1.189033824
+Bacteroidetes,21: g_Pedobacter,0.515845416,48.66666667,48.66666667,3,1.584962501
+Alphaproteobacteria,22: g_Brevundimonas,0.427961753,26,26,2,1
+Gemmatimonadetes,23: f_Gemmatimonadaceae,0.30849775,92.66666667,92.66666667,1,0
+Betaproteobacteria,24: g_Pusillimonas,0.567184559,183.3333333,183.3333333,2,1
+Bacteroidetes,25: g_Pedobacter,0.277987164,7,7,3,1.584962501
+Gammaproteobacteria,26: f_Pseudoxanthomonas,0.217489505,18.66666667,18.66666667,1.5,0.584962501
+Betaproteobacteria,27: g_Pusillimonas,0.178966138,7,7,2,1
+Alphaproteobacteria,28: g_Sphingomonas,0.164668501,6.333333333,6.333333333,2.33,1.220329955

@@ -1,6 +1,5 @@
 # Response to nitrogen addition reveals metabolic and ecological strategies of soil bacteria
-#### R script file 
-
+#### R scripts 
 
 #### Install and run R packages
 ```{r Load libraries and data}
@@ -16,22 +15,17 @@ library(dplyr)
 library(vegan)
 library(mpmcorrelogram)
 
-uzdir <- "/file path/Manuscript_3_R_data/"
+uzdir <- "/file path/Samad_Response_to_N_Mol_Ecol_2017/"
 otutable_biom_file <- paste(uzdir, "113_soils_merged_otu_table.json", sep = "")
-map_file <- paste(uzdir, "113_cDNA_DNA_mapping file_FINAL.txt", sep = "")
+map_file <- paste(uzdir, "113_cDNA_DNA_mapping file.txt", sep = "")
 ```
 
 ```{r Create phyloseq object}
 # Now import the .biom-formatted otu_table-tax_table file.
-
 biom_otu_tax <- import_biom(otutable_biom_file)
 
 # Add sample data to the dataset using merge
 bmsd <- import_qiime_sample_data(map_file)
-class(bmsd)
-dim(bmsd)
-sample_data(bmsd)
-biom_otu_tax
 
 
 ##### Merge into phyloseq format
@@ -58,27 +52,17 @@ otu_table_df<- as.data.frame(otu_table(SS1_phyloseq))
 ```
 
 ##### Check that all OTUs have representative counts  
-
 ```{r identify taxa with only zeros, results='markup', echo=TRUE}
-sum(taxa_sums(SS1_phyloseq) > 0)
-any(taxa_sums(SS1_phyloseq)== 0)
-sum(taxa_sums(SS1_phyloseq) == 0)
-any(taxa_sums(SS1_phyloseq) > 1)
-sum(taxa_sums(SS1_phyloseq) > 1)
 any(taxa_sums(SS1_phyloseq) < 1)
 sum(taxa_sums(SS1_phyloseq) < 1)
 ```
 
 ##### Prune taxa with less than 1 count and check taxa numbers again
-
 ```{r  Save original file and create new file with only present (no zeroes) taxa, results='markup', echo=TRUE}
 
 #Create new file with only present (no zeroes) taxa
 
 SS1_phyloseq = prune_taxa(taxa_sums(SS1_phyloseq) > 1, SS1_phyloseq)
-any(sample_sums(SS1_phyloseq) == 0)
-any(sample_sums(SS1_phyloseq) > 0)
-sum(taxa_sums(SS1_phyloseq) > 0)
 any(sample_sums(SS1_phyloseq) < 1)
 sum(taxa_sums(SS1_phyloseq) < 1)
 ```
@@ -130,18 +114,17 @@ cDNA_LM_phyloseq = subset_samples(cDNA_phyloseq, Group == "LM")
 ```
 
 
-#### Plot alpha diversity
+##### Plot alpha diversity
 ```{r, echo=FALSE}
-#####NB. if you want to calculate and export diversity data then use the below command
+#####NB. if you want to calculate and export diversity data then use the below commands
 #####name_cDNA= estimate_richness(cDNA_phyloseq, split = TRUE, measures = NULL)
 #####write.table(name_cDNA, "/file path/name_cDNA.txt", sep="\t")
 
 #####name_DNA= estimate_richness(DNA_phyloseq, split = TRUE, measures = NULL)
 #####write.table(name_DNA, "/file path/name_DNA.txt", sep="\t")
 
-#### Plot alpha diversity cDNA level
+#### Plot alpha diversity at 16S rRNA level
 ##### richness plots
-
 plot_richness(cDNA_phyloseq2, measures = c("Observed"), x = "Day") + geom_text(aes(label = " "), size = 4) + geom_boxplot(alpha = 1) + theme_bw() + theme(axis.text.x = element_text(hjust = 0.5, size = 16, color = "black"), axis.text.y = element_text(size = 16, color = "black"), axis.title.y = element_text(vjust = 1, size = 16),
         axis.title.x = element_text(size = 16), strip.text.x = element_text(size = 16)) + facet_grid(.~Treatment, drop = TRUE, space = "free", scales = "free") + ylab("Observed")
 
@@ -149,22 +132,17 @@ plot_richness(cDNA_phyloseq2, measures = c("Observed"), x = "Day") + geom_text(a
 plot_richness(cDNA_phyloseq2, measures = c("Shannon"), x = "Day") + geom_text(aes(label = " "), size = 4) + geom_boxplot(alpha = 1) + theme_bw() + theme(axis.text.x = element_text(hjust = 0.5, size = 16, color = "black"), axis.text.y = element_text(size = 16, color = "black"), axis.title.y = element_text(vjust = 1, size = 16),
         axis.title.x = element_text(size = 16), strip.text.x = element_text(size = 16)) + facet_grid(.~Treatment, drop = TRUE, space = "free", scales = "free") + ylab("Shannon Diversity")
 
-```
-
 ##### Plot alpha diversity at 16s rDNA level
-
-```{r, echo=FALSE}
 #### richness plots
-
 plot_richness(DNA_phyloseq, measures = c("Observed"), x = "Day") + geom_text(aes(label = " "), size = 4) + geom_boxplot(alpha = 1) + theme_bw() + theme(axis.text.x = element_text(hjust = 0.5, size = 16, color = "black"), axis.text.y = element_text(size = 16, color = "black"), axis.title.y = element_text(vjust = 1, size = 16),
         axis.title.x = element_text(size = 16), strip.text.x = element_text(size = 16)) + facet_grid(.~Treatment, drop = TRUE, space = "free", scales = "free") + ylab("Observed")
 
-
+#### Shannon diversity
 plot_richness(DNA_phyloseq, measures = c("Shannon"), x = "Day") + geom_text(aes(label = " "), size = 4) + geom_boxplot(alpha = 1) + theme_bw() + theme(axis.text.x = element_text(hjust = 0.5, size = 16, color = "black"), axis.text.y = element_text(size = 16, color = "black"), axis.title.y = element_text(vjust = 1, size = 16),
         axis.title.x = element_text(size = 16), strip.text.x = element_text(size = 16)) + facet_grid(.~Treatment, drop = TRUE, space = "free", scales = "free") + ylab("Shannon Diversity")
 ```
 
-#### Subset samples by experiment (optional)
+##### Subset samples by experiment (optional)
 ```{r}
 Control_phyloseq = subset_samples(sainur_phyloseq, Treatment == "Control")
 
@@ -178,7 +156,7 @@ Urea_10kPa_phyloseq = subset_samples(sainur_phyloseq, Treatment == "Urea_10kPa")
 
 ```
 
-#### Figure S8 (Phylum level changes (relative abundance) in genome (16S rDNA) and transcript (16S rRNA) levels representing relative contribution >1% of all detected phyla (based on OTUs clustered at 97% sequence similarity)
+##### Figure S8 (Phylum level changes (relative abundance) in genome (16S rDNA) and transcript (16S rRNA) levels representing relative contribution >1% of all detected phyla (based on OTUs clustered at 97% sequence similarity)
 ```{r Figure S8}
 sainur_phylum <- DNA_cDNA_phyloseq %>% tax_glom(taxrank = "Phylum") %>%   
 # agglomerate at phylum level
@@ -217,10 +195,7 @@ f_DNA_cDNA=ggplot(tg, aes(x=n_Day, y=Abundance, group=Treatment4, fill = Phylum)
  geom_bar(stat = "identity") +
   scale_fill_manual(values = phylum_colors,labels=color_labels)  +
   xlab("Day")+
-  
-  # Remove x axis title
   theme(axis.title.x = element_blank()) + 
-  #
    theme_bw()+
    theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
         strip.text.x = element_text(size=12, angle=0)) +
@@ -233,13 +208,11 @@ f_DNA_cDNA
 
 a= b+ scale_fill_manual(name="Phylum",values = c("grey26", "royalblue", "darkorange","chartreuse3",  "red", "#D3D93E", "#38333E", "#ff3cbb","cyan2", "darkgreen", "deepskyblue", "mediumorchid3","#89C5DA", "#DA5724", "#74D944", "#C84248", "#673770", "#D3D93E", "#38333E", "#508578", "#D7C1B1", "#689030", "#AD6F3B", "#CD9BCD", "#D14285", "#6DDE88", "#CD9BCD", "#D14285", "#6DDE88", "#652926", "#7FDCC0", "#8569D5", "#5E738F", "#D1A33D", "#8A7C64", "#599861", "blue4", "yellow1", "violetred", "#CD9BCD", "#D14285", "#6DDE88", "#652926", "#7FDCC0", "#8569D5", "#5E738F", "#D1A33D", "#8A7C64", "#599861", "blue4", "yellow1", "violetred", "#990000", "#99CC00", "#003300", "#00CCCC", "#9966CC", "#993366", "#990033", "#4863A0", "#000033", "#330000", "#00CC99", "#00FF33", "#00CCFF", "#FF9933", "#660066", "#FF0066", "slateblue4", "tan4", "tomato4", "steelblue", "springgreen4", "snow4", "slategray2", "plum1", "yellow", "sienna"),
                         
-
-
 labels=c("Acidobacteria", "Actinobacteria", "Bacteroidetes","Chloroflexi", "Firmicutes", "Gemmatimonadetes","Planctomycetes", "Proteobacteria", "Thaumarchaeota","Verrucomicrobia") )
 
 ```
 
-### Figure 2b (16S rDNA & 16S rRNA)
+##### Figure 2b (16S rDNA & 16S rRNA)
 ``` {r Figure 2b}
 
 title = "DNA"
@@ -274,7 +247,7 @@ library(grid)
 multiplot(p, q,cols=1)
 ```
 
-#### Adonis test
+##### Adonis test
 ``` {r Adonis test }
 library("phyloseq")
 library ("vegan")
@@ -310,8 +283,7 @@ adonis(SSdist ~ Treatment1, as(sample_data(SSex), "data.frame"))
 
 ````
 
-
-#### Mantel Correlation
+##### Mantel Correlation
 ```{r Figure 2c and S6 }
 ###subset samples by Treatments (DNA)
 
@@ -409,7 +381,7 @@ legend(x=4,y=-0.5,"LM+N",cex=1,
 
  legend(x=0,y=0.5,"16rRNA",cex=1,col="black",bty = "n")
 
-####Similar results were observed for second (R2) and third replicates (R3)
+#NB.Similar results were observed for second (R2) and third replicates (R3)
  
 ####Second replicate R2
 
@@ -694,11 +666,7 @@ legend(x=3,y=-0.5,"LM-N",cex=1,
 ```{r SIMPER analysis}
 # SIMPER analysis (Groups LM and HM, Treatment= = +N and -N)
 #Create new file with only present (no zeroes) taxa
-
 DNA_HM_phyloseq = prune_taxa(taxa_sums(DNA_HM_phyloseq) > 1, DNA_HM_phyloseq)
-any(sample_sums(DNA_HM_phyloseq) == 0)
-any(sample_sums(DNA_HM_phyloseq) > 0)
-sum(taxa_sums(DNA_HM_phyloseq) > 0)
 any(sample_sums(DNA_HM_phyloseq) < 1)
 sum(taxa_sums(DNA_HM_phyloseq) < 1)
 
@@ -718,9 +686,6 @@ write.table(sim_HM_DNA, "/file path/HM_DNA.txt",sep="\t")
 
 #2. SIMPER (LM_DNA)
 DNA_LM_phyloseq = prune_taxa(taxa_sums(DNA_LM_phyloseq) > 1, DNA_LM_phyloseq)
-any(sample_sums(DNA_LM_phyloseq) == 0)
-any(sample_sums(DNA_LM_phyloseq) > 0)
-sum(taxa_sums(DNA_LM_phyloseq) > 0)
 any(sample_sums(DNA_LM_phyloseq) < 1)
 sum(taxa_sums(DNA_LM_phyloseq) < 1)
 
@@ -740,9 +705,6 @@ write.table(sim_LM_DNA, "/file path/LM_DNA.txt",sep="\t")
 
 #cDNA
 cDNA_HM_phyloseq = prune_taxa(taxa_sums(cDNA_HM_phyloseq) > 1, cDNA_HM_phyloseq)
-any(sample_sums(cDNA_HM_phyloseq) == 0)
-any(sample_sums(cDNA_HM_phyloseq) > 0)
-sum(taxa_sums(cDNA_HM_phyloseq) > 0)
 any(sample_sums(cDNA_HM_phyloseq) < 1)
 sum(taxa_sums(cDNA_HM_phyloseq) < 1)
 
@@ -761,9 +723,6 @@ write.table(sim_HM_DNA, "/file path/HM_cDNA.txt",sep="\t")
 
 #2. SIMPER (LM_cDNA)
 cDNA_LM_phyloseq = prune_taxa(taxa_sums(cDNA_LM_phyloseq) > 1, cDNA_LM_phyloseq)
-any(sample_sums(cDNA_LM_phyloseq) == 0)
-any(sample_sums(cDNA_LM_phyloseq) > 0)
-sum(taxa_sums(cDNA_LM_phyloseq) > 0)
 any(sample_sums(cDNA_LM_phyloseq) < 1)
 sum(taxa_sums(cDNA_LM_phyloseq) < 1)
 
@@ -779,7 +738,7 @@ lapply(sim_LM_cDNA, FUN = function(x){x$overall})
 
 #Export
 sim_LM_cDNA <- result_LH_cDNA $"Urea_No Urea"
-write.table(sim_LM_DNA, "/file path/LM_cDNA.txt",sep="\t")
+write.table(sim_LM_DNA, "/Users/Sainur/Desktop/LM_cDNA.txt",sep="\t")
 
 ```
 
@@ -801,7 +760,7 @@ pvrect(fit, alpha=.95)
 ```{r t-test}
 #### t-test
 ##### independent 2-group t-test, #t.test(y1,y2) # where y1 and y2 are numeric
-t_test<- read.csv("~/Documents/R_files/HM_rrn_t_test.csv", header=T)
+t_test<- read.csv("/file path/HM_rrn_t_test.csv", header=T)
 t_test
 t.test(t_test$Max.abundance_HM_H,t_test$Max.abundance_HM_L)
 #(p=t = 3.2014, df = 30.656, p-value = 0.003178)
@@ -810,7 +769,7 @@ t.test(t_test$Fold.changes_HM_H,t_test$Fold.changes_HM_L)
 t.test(t_test$Growth.rate_HM_H,t_test$Growth.rate_HM_L)
 #(t = 0.58204, df = 23.923, p-value = 0.566)
 
-t_test<- read.csv("~/Documents/R_files/LM_rrn_t_test.csv", header=T)
+t_test<- read.csv("/file path/LM_rrn_t_test.csv", header=T)
 
 t_test
 t.test(t_test$Max.abundance_LM_H,t_test$Max.abundance_LM_L)
@@ -833,12 +792,12 @@ t.test(t_test$Fold_changes_H,t_test$Fold_changes_L)
 ```
 
 ##### Michaelis_Menten Model (Figure 7)
-```{r t-test}
+```{r }
 library(drc)
 library(grid)
 library(ggplot2)
 
-mn_test<- read.csv("~/Documents/R_files/HM_mn_test.csv", header=T)
+mn_test<- read.csv("/file path/HM_mn_test.csv", header=T)
 mn_test
 
 model.drm <- drm (Growth_Day_HM ~ rrn_copy_HM, data = mn_test, fct = MM.3())
@@ -864,10 +823,7 @@ HM1
 HM1= HM1 +theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank()) 
 HM1
 
-model.nls <- nls(Growth_Day_HM ~ Vm * rrn_copy_HM/(K+rrn_copy_HM), data = mn_test,   start = list(K = max(mn_test$Growth_Day_HM)/2, Vm = max(mn_test$Growth_Day_HM)))
 
-summary(model.drm)
-summary(model.nls)
 
 ###Maximum
 model.drm <- drm (Max_abundance_HM ~ rrn_copy_HM, data = mn_test, fct = MM.2())
@@ -898,11 +854,6 @@ HM2
 
 
 
-model.nls <- nls(Max_abundance_HM ~ Vm * rrn_copy_HM/(K+rrn_copy_HM), data = mn_test,   start = list(K = max(mn_test$Growth_Day_HM)/2, Vm = max(mn_test$Max_abundance_HM)))
-
-summary(model.drm)
-summary(model.nls)
-
 
 #Foldchnages_HM
 model.drm <- drm (Fold_changes_HM ~ rrn_copy_HM, data = mn_test, fct = MM.2())
@@ -928,13 +879,9 @@ HM3
 HM3= HM3 +theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank()) 
 HM3
 
-model.nls <- nls(Fold_changes_HM ~ Vm * rrn_copy_HM/(K+rrn_copy_HM), data = mn_test,   start = list(K = max(mn_test$Growth_Day_HM)/2, Vm = max(mn_test$Fold_changes_HM)))
-
-summary(model.drm)
-summary(model.nls)
 
 ###LM
-LM_test<- read.csv("~/Documents/R_files/LM_mn_test .csv", header=T)
+LM_test<- read.csv("/file path/LM_mn_test .csv", header=T)
 LM_test
 
 model.drm <- drm (Growth_Day_LM ~ rrn_copy_LM, data = LM_test, fct = MM.2())
@@ -960,11 +907,6 @@ LM1= LM1 +theme(panel.grid.major = element_blank(), panel.grid.minor = element_b
 LM1
 
 
-model.nls <- nls(Growth_Day_LM ~ Vm * rrn_copy_LM/(K+rrn_copy_LM), data = LM_test,start = list(K = max(LM_test$Growth_Day_LM)/2, Vm = max(LM_test$Growth_Day_LM)))
-
-summary(model.drm)
-summary(model.nls)
-
 ###Maximum
 model.drm <- drm (Max_abundance_LM ~ rrn_copy_LM, data = LM_test, fct = MM.2())
 
@@ -988,12 +930,6 @@ LM2
 LM2= LM2 +theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank()) 
 LM2
 
-model.nls <- nls(Max_abundance_LM ~ Vm * rrn_copy_LM/(K+rrn_copy_LM), data = LM_test,   start = list(K = max(LM_test$Growth_Day_LM)/2, Vm = max(LM_test$Max_abundance_LM)))
-
-summary(model.drm)
-summary(model.nls)
-
-
 #Foldchnages_HM
 model.drm <- drm (Fold_changes_LM ~ rrn_copy_LM, data = LM_test, fct = MM.2())
 
@@ -1001,7 +937,6 @@ mml <- data.frame(rrn_copy_LM = seq(0, max(LM_test$rrn_copy_LM), length.out = 10
 mml$Fold_changes_LM <- predict(model.drm, newdata = mml)
 
 #drawing graph in ggplot
-
 LM3= ggplot(LM_test, aes(x = rrn_copy_LM, y = Fold_changes_LM, color = Phylum)) +
   theme_bw() +
   scale_color_manual(values = c("#0AFD37", "red", "#ffae19",
@@ -1017,14 +952,9 @@ LM3
 LM3= LM3 +theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank()) 
 LM3
 
-model.nls <- nls(Fold_changes_LM ~ Vm * rrn_copy_LM/(K+rrn_copy_LM), data = LM_test,   start = list(K = max(LM_test$Growth_Day_LM)/2, Vm = max(LM_test$Fold_changes_LM)))
-
-summary(model.drm)
-summary(model.nls)
 
 ###BestLM/HM
-
-best_test<- read.csv("~/Documents/R_files/best_LM_HM.csv", header=T)
+best_test<- read.csv("/file path/best_LM_HM.csv", header=T)
 best_test
 
 model.drm <- drm (Growth_Day_best ~ rrn_copy_best, data = best_test, fct = MM.2())
@@ -1033,7 +963,6 @@ mml <- data.frame(rrn_copy_best = seq(0, max(best_test$rrn_copy_best), length.ou
 mml$Growth_Day_best <- predict(model.drm, newdata = mml)
 
 #drawing graph in ggplot
-
 best1=ggplot(best_test, aes(x = rrn_copy_best, y = Growth_Day_best, color=Phylum)) +
   theme_bw() +
   scale_color_manual(values = c("#0AFD37", "red", "#ffae19",
@@ -1049,12 +978,6 @@ best1
 best1= best1 +theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank()) 
 best1
 
-
-model.nls <- nls(Growth_Day_best ~ Vm * rrn_copy_best/(K+rrn_copy_best), data = best_test,start = list(K = max(best_test$Growth_Day_best)/2, Vm = max(best_test$Growth_Day_best)))
-
-summary(model.drm)
-summary(model.nls)
-
 ###Maximum
 model.drm <- drm (Max_abundance_best ~ rrn_copy_best, data = best_test, fct = MM.2())
 
@@ -1062,7 +985,6 @@ mml <- data.frame(rrn_copy_best = seq(0, max(best_test$rrn_copy_best), length.ou
 mml$Max_abundance_best <- predict(model.drm, newdata = mml)
 
 #drawing graph in ggplot
-
 best2= ggplot(best_test, aes(x = rrn_copy_best, y = Max_abundance_best, color=Phylum)) +
   theme_bw() +
   scale_color_manual(values = c("#0AFD37", "red", "#ffae19",
@@ -1078,12 +1000,6 @@ best2
 best2= best2 +theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank()) 
 best2
 
-model.nls <- nls(Max_abundance_best ~ Vm * rrn_copy_best/(K+rrn_copy_best), data = best_test,   start = list(K = max(best_test$Growth_Day_best)/2, Vm = max(best_test$Max_abundance_best)))
-
-summary(model.drm)
-summary(model.nls)
-
-
 #Foldchnages_HM
 model.drm <- drm (Fold_changes_best ~ rrn_copy_best, data = best_test, fct = MM.2())
 
@@ -1091,7 +1007,6 @@ mml <- data.frame(rrn_copy_best = seq(0, max(best_test$rrn_copy_best), length.ou
 mml$Fold_changes_best <- predict(model.drm, newdata = mml)
 
 #drawing graph in ggplot
-
 best3= ggplot(best_test, aes(x = rrn_copy_best, y = Fold_changes_best, color = Phylum)) +
   theme_bw() +
   scale_color_manual(values = c("#0AFD37", "red", "#ffae19",
@@ -1107,23 +1022,227 @@ best3
 best3= best3 +theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank()) 
 best3
 
-model.nls <- nls(Fold_changes_best ~ Vm * rrn_copy_best/(K+rrn_copy_best), data = best_test,   start = list(K = max(best_test$Growth_Day_best)/2, Vm = max(best_test$Fold_changes_best)))
-
-summary(model.drm)
-summary(model.nls)
 
 p1<- multiplot(HM1,HM2,HM3,LM1,LM2,LM3,best1,best2,best3, cols=3)
 
 ##NB: Multiplot function can loaded from here: http://www.cookbook-r.com/Graphs/Multiple_graphs_on_one_page_(ggplot2)/ 
 
 ```
+#### Linear fit rrn (Figure S11)
+```{r }
+library(ggplot2)
+
+mn_test<- read.csv("/file path/Linear model data/HM_linear_model.csv", header=T)
+mn_test
+
+mn.lm = lm(Growth_Day_HM~ log2.rrn , data=mn_test)
+summary(mn.lm) 
+
+#drawing graph in ggplot
+Phylum = mn_test$Phylum
+HM1=ggplot(mn_test, aes(x=log2.rrn, y=Growth_Day_HM)) +
+  geom_smooth(method = "lm", color="black")+
+  xlab("rrn copy no. (log2)") +
+  ylab("Growth rate (per day)") +
+  ggtitle("HM") +
+  geom_point(aes(color = Phylum),alpha = 0.7, size =3) + 
+  theme_bw() +
+  scale_color_manual(values = c("#0AFD37", "red", "#ffae19",
+                                "#4daf4a", "#1919ff","#990000" , "magenta",
+                                "#3295ff", "#660066", 
+                                "#32ffe7", "black"))+
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank())
+ 
+HM1
+ 
+###Maximum
+max.lm = lm(Max_abundance_HM~ log2.rrn , data=mn_test)
+summary(max.lm) 
+
+#drawing graph in ggplot
+
+Phylum = mn_test$Phylum
+HM2=ggplot(mn_test, aes(x=log2.rrn, y=Max_abundance_HM)) +
+  geom_smooth(method = "lm", color="black")+
+  xlab("rrn copy no. (log2)") +
+  ylab("Max. abundance ") +
+  ggtitle("HM") +
+  geom_point(aes(color = Phylum),alpha = 0.7, size =3) + 
+  theme_bw() +
+  scale_color_manual(values = c("#0AFD37", "red", "#ffae19",
+                                "#4daf4a", "#1919ff","#990000" , "magenta",
+                                "#3295ff", "#660066", 
+                                "#32ffe7", "black"))+
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank())
+
+HM2
+
+#Foldchnages_HM
+
+max.lm = lm(Fold_changes_HM~ log2.rrn , data=mn_test)
+summary(max.lm) 
+
+#drawing graph in ggplot
+
+Phylum = mn_test$Phylum
+HM3=ggplot(mn_test, aes(x=log2.rrn, y=Fold_changes_HM)) +
+  geom_smooth(method = "lm", color="black")+
+  xlab("rrn copy no. (log2)") +
+  ylab("Fold change (abundance)") +
+  ggtitle("HM") +
+  geom_point(aes(color = Phylum),alpha = 0.7, size =3) + 
+  theme_bw() +
+  scale_color_manual(values = c("#0AFD37", "red", "#ffae19",
+                                "#4daf4a", "#1919ff","#990000" , "magenta",
+                                "#3295ff", "#660066", 
+                                "#32ffe7", "black"))+
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank())
+
+HM3
+
+###LM
+LM_test<- read.csv("/file path/LM_linear_model.csv", header=T)
+LM_test
+
+max.lm = lm(Growth_Day_LM~ log2rrn , data=LM_test)
+summary(max.lm) 
+
+#drawing graph in ggplot
+Phylum = LM_test$Phylum
+LM1=ggplot(LM_test, aes(x=log2rrn, y=Growth_Day_LM)) +
+  geom_smooth(method = "lm", color="black")+
+  xlab("rrn copy no. (log2)") +
+  ylab("Growth rate (per day)") +
+  ggtitle("LM") +
+  geom_point(aes(color = Phylum),alpha = 0.7, size =3) + 
+  theme_bw() +
+  scale_color_manual(values = c("#0AFD37", "red", "#ffae19",
+                                "#4daf4a", "#1919ff","#990000" , "magenta",
+                                "#3295ff", "#660066", 
+                                "#32ffe7", "black"))+
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank())
+
+LM1
+
+###Maximum
+max.lm = lm(Max_abundance_LM~ log2rrn , data=LM_test)
+summary(max.lm) 
+
+#drawing graph in ggplot
+
+Phylum = LM_test$Phylum
+LM2=ggplot(LM_test, aes(x=log2rrn, y=Max_abundance_LM)) +
+  geom_smooth(method = "lm", color="black")+
+  xlab("rrn copy no. (log2)") +
+  ylab("Max. abundance ") +
+  ggtitle("LM") +
+  geom_point(aes(color = Phylum),alpha = 0.7, size =3) + 
+  theme_bw() +
+  scale_color_manual(values = c("#0AFD37", "red", "#ffae19",
+                                "#4daf4a", "#1919ff","#990000" , "magenta",
+                                "#3295ff", "#660066", 
+                                "#32ffe7", "black"))+
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank())
+
+LM2
+
+
+#Foldchnages_HM
+max.lm = lm(Fold_changes_LM~ log2rrn , data=LM_test)
+summary(max.lm) 
+
+#drawing graph in ggplot
+Phylum = LM_test$Phylum
+LM3=ggplot(LM_test, aes(x=log2rrn, y=Fold_changes_LM)) +
+  geom_smooth(method = "lm", color="black")+
+  xlab("rrn copy no. (log2)") +
+  ylab("Fold change (abundance)") +
+  ggtitle("LM") +
+  geom_point(aes(color = Phylum),alpha = 0.7, size =3) + 
+  theme_bw() +
+  scale_color_manual(values = c("#0AFD37", "red", "#ffae19",
+                                "#4daf4a", "#1919ff","#990000" , "magenta",
+                                "#3295ff", "#660066", 
+                                "#32ffe7", "black"))+
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank())
+
+LM3
+
+###Best (LM/HM)
+Best_test<- read.csv("/file path/best_linear_LM_HM.csv", header=T)
+Best_test
+
+bestG.lm = lm(Growth_Day_best~ log2rrn , data=Best_test)
+summary(bestG.lm) 
+
+#drawing graph in ggplot
+Phylum = Best_test$Phylum
+best1=ggplot(Best_test, aes(x=log2rrn, y=Growth_Day_best)) +
+  geom_smooth(method = "lm", color="black")+
+  xlab("rrn copy no. (log2)") +
+  ylab("Growth rate (per day)") +
+  ggtitle("Best (HM/LM)") +
+  geom_point(aes(color = Phylum),alpha = 0.7, size =3) + 
+  theme_bw() +
+  scale_color_manual(values = c("#0AFD37", "red", "#ffae19",
+                                "#4daf4a", "#1919ff","#990000" , "magenta",
+                                "#3295ff", "#660066", 
+                                "#32ffe7", "black"))+
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank())
+
+best1
+
+###Maximum
+best_max.lm = lm(Max_abundance_best~ log2rrn , data=Best_test)
+summary(best_max.lm) 
+
+#drawing graph in ggplot
+
+Phylum = Best_test$Phylum
+best2=ggplot(Best_test, aes(x=log2rrn, y=Max_abundance_best)) +
+  geom_smooth(method = "lm", color="black")+
+  xlab("rrn copy no. (log2)") +
+  ylab("Max. abundance ") +
+  ggtitle("Best (HM/LM)") +
+  scale_color_manual(values = c("#0AFD37", "red", "#ffae19",
+                                "#4daf4a", "#1919ff","#990000" , "magenta",
+                                "#3295ff", "#660066", 
+                                "#32ffe7", "black"))+
+  geom_point(aes(color = Phylum),alpha = 0.7, size =3) + 
+  theme_bw() +
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank())
+
+best2
+
+#Foldchnages_HM
+best.lm = lm(Fold_changes_best~ log2rrn , data=Best_test)
+summary(best.lm) 
+
+#drawing graph in ggplot
+Phylum = Best_test$Phylum
+best3=ggplot(Best_test, aes(x=log2rrn, y=Fold_changes_best)) +
+  geom_smooth(method = "lm", color="black")+
+  xlab("rrn copy no. (log2)") +
+  ylab("Fold change (abundance)") +
+  ggtitle("Best (HM/LM)") +
+  geom_point(aes(color = Phylum),alpha = 0.7, size =3) + 
+  theme_bw() +
+  scale_color_manual(values = c("#0AFD37", "red", "#ffae19",
+                                "#4daf4a", "#1919ff","#990000" , "magenta",
+                                "#3295ff", "#660066", 
+                                "#32ffe7", "black"))+
+  
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank())
+
+best3
+p1<- multiplot(HM1,HM2,HM3,LM1,LM2,LM3,best1,best2,best3, cols=3)
+```
 
 #### Line graphs (Figure 3, Figure 5, Figure 6) 
 ```{r}
 #### Figure 3 (DNA)
-Fs3 <- read.csv("/file path/Figure_3_DNA_MS_3.csv",fill = TRUE, header = TRUE, sep = ",")
+Fs3 <- read.csv("/file path/Figure_3.csv",fill = TRUE, header = TRUE, sep = ",")
 library(Rmisc)
-#summarySE provides the standard deviation, standard error of the mean, and a (default 95%) confidence interval
 tgc1 <- summarySE(Fs3, measurevar="Abundance", groupvars=c("Treatment","Day","Phylum", "Treatment1", "Treatment2"))
 tgc1
 
@@ -1131,8 +1250,7 @@ require(grid)
 require(plyr)
 library(ggplot2)
 
-pd <- position_dodge(0.001) # move them .05 to the left and right
-#cols <- c("No_Urea_1.0kPa" = "red","No_Urea_10kPa" = "blue","Urea_1.0kPa" = "darkgreen", "Urea_10kPa" = "orange")
+pd <- position_dodge(0.001) 
 a=ggplot(tgc1, aes(x=Day, y=Abundance, group=Treatment)) + 
   
   facet_wrap(~Phylum, ncol = 4, scales = "free_y") +
@@ -1140,27 +1258,18 @@ a=ggplot(tgc1, aes(x=Day, y=Abundance, group=Treatment)) +
   geom_errorbar(aes(ymin=Abundance-se, ymax=Abundance+se), colour="black", position=pd) +
   geom_line(aes(linetype=Treatment1, colour=Treatment2),position=pd) +
   geom_point(aes(shape=Treatment2,colour=Treatment2))+
-  
-  #geom_point(position=pd, size=1, shape=20, fill="black") + # 21 is filled circle
   xlab("Day") +
-#  scale_x_continuous(breaks = c(0,7,14,21,35,50,63))+
-  
   ylab("Absolute abundance") +
-  expand_limits(y=0) +                        # Expand y range
+  expand_limits(y=0) +                       
   scale_y_continuous() +        
   theme_bw() +
   theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
         strip.text.x = element_text(size=8, angle=0))  
 fig3= a+scale_color_manual(values=c("#4B0082", "#87CEEB")) 
-
-#b= a+scale_color_manual(values=c("#111111", "gray70"))  #Black and gray
-
 fig3
-#output file as pdf: ggsave("/Users/Sainur/Desktop/fig3.pdf",width=7,height=9)
-
 
 #Figure 5
-Fs5 <- read.csv("/file path/Figure_5_DNA_MS_3.csv",fill = TRUE, header = TRUE, sep = ",")
+Fs5 <- read.csv("/file path/Figure_5.csv",fill = TRUE, header = TRUE, sep = ",")
 
 tgc5 <- summarySE(Fs5, measurevar="Abundance", groupvars=c("Treatment","Day","order_OTU", "Treatment1", "Treatment2"))
 
@@ -1168,7 +1277,7 @@ library(grid)
 library(plyr)
 library(ggplot2)
 
-pd <- position_dodge(0.001) # move them .05 to the left and right
+pd <- position_dodge(0.001) 
 
 a=ggplot(tgc5, aes(x=Day, y=Abundance, group=Treatment)) + 
   
@@ -1177,40 +1286,30 @@ a=ggplot(tgc5, aes(x=Day, y=Abundance, group=Treatment)) +
   geom_errorbar(aes(ymin=Abundance-se, ymax=Abundance+se), colour="black", position=pd) +
   geom_line(aes(linetype=Treatment1, colour=Treatment2),position=pd) +
   geom_point(aes(shape=Treatment2,colour=Treatment2))+
-  
-  #geom_point(position=pd, size=1, shape=20, fill="black") + # 21 is filled circle
   xlab("Day") +
   scale_x_continuous(breaks = c(0,7,14,21,35,50,63))+
   
-  ylab("Absolute abundance") +
-  expand_limits(y=0) +                        # Expand y range
+  ylab("Relative abundance") +
+  expand_limits(y=0) +                 
   scale_y_continuous() +        
   theme_bw() +
   theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
         strip.text.x = element_text(size=7, angle=0),
         axis.text=element_text(size=8))  
 fig5= a+scale_color_manual(values=c("#4B0082", "#87CEEB")) 
-
-#b= a+scale_color_manual(values=c("#111111", "gray70"))  #Black and gray
-
 fig5
-#output file as pdf:ggsave("/Users/Sainur/Desktop/fig5.pdf",width=8,height=11)
 
 
 #Figure 6
-Fs6 <- read.csv("file path/Figure_6_DNA_MS_3.csv",fill = TRUE, header = TRUE, sep = ",")
+Fs6 <- read.csv("file path/Figure_6.csv",fill = TRUE, header = TRUE, sep = ",")
 tgc6 <- summarySE(Fs6, measurevar="Abundance", groupvars=c("Treatment","Day","order_OTU", "Treatment1", "Treatment2"))
 
 library(Rmisc)
-# summarySE provides the standard deviation, standard error of the mean, and a (default 95%) confidence interval
-
 require(grid)
 require(plyr)
 require(ggplot2)
 
-
-pd <- position_dodge(0.001) # move them .05 to the left and right
-
+pd <- position_dodge(0.001) 
 pp=ggplot(tgc6, aes(x=Day, y=Abundance, group=Treatment)) + 
 
   facet_wrap(~order_OTU, ncol = 4, scales = "free_y") +
@@ -1218,22 +1317,13 @@ pp=ggplot(tgc6, aes(x=Day, y=Abundance, group=Treatment)) +
   geom_errorbar(aes(ymin=Abundance-se, ymax=Abundance+se), colour="black", position=pd) +
   geom_line(aes(linetype=Treatment1, colour=Treatment2),position=pd) +
   geom_point(aes(shape=Treatment2,colour=Treatment2))+
-
-  #geom_point(position=pd, size=1, shape=20, fill="black") + # 21 is filled circle
   xlab("Day") +
-
-  
-  ylab("Absolute abundance") +
-  expand_limits(y=0) +                        # Expand y range
+  ylab("Relative abundance") +
+  expand_limits(y=0) +                        
   scale_y_continuous() +        
   theme_bw() +
   theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
         strip.text.x = element_text(size=7, angle=0))  
 fig6= pp+scale_color_manual(values=c("#4B0082", "#87CEEB")) 
-
-##ppp= pp+scale_color_manual(values=c("#111111", "gray70"))  #Black and gray
-
 fig6
-#output file as pdf: ggsave("/Users/Sainur/Desktop/f6.pdf",width=9,height=4)
-
 ```

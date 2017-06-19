@@ -1,0 +1,35 @@
+Phylum,order_OTU_HM,Growth_Day_HM,Max_abundance_HM,Fold_changes_HM,rrn_copy_HM,log2 rrn
+Firmicutes,01: g_Sporosarcina ,0.718633989,357,153,10,3.321928095
+Bacteroidetes,03: f_Cytophagaceae,0.205497159,179.3333333,179.3333333,3,1.584962501
+Firmicutes,04: g_Clostridium sensu ,0.302454553,410.3333333,410.3333333,8.89,3.152183419
+Firmicutes,05: f_Paenibacillaceae,0.641767813,125,125,10.75,3.426264755
+Firmicutes,06: g_Paenibacillus,0.457921829,39.66666667,39.66666667,10.86,3.440952198
+Bacteroidetes,07: g_Pedobacter,0.544863228,116.3333333,116.3333333,3,1.584962501
+Betaproteobacteria,08: f_Methylophilaceae,0.122007817,322,322,2.2,1.137503524
+Bacteroidetes,09: g_Sphingobacteria ,0.872006987,506,506,4,2
+Alphaproteobacteria,10: g_Aquamicrobium,0.434931777,26.66666667,26.66666667,2,1
+Alphaproteobacteria,11: g_Brevundimonas ,0.631835518,197.3333333,197.3333333,2,1
+Alphaproteobacteria,12: g_Sphingomonas,0.145563555,335.6666667,335.6666667,2.33,1.220329955
+Bacteroidetes,13: g_Pontibacter,0.571607734,54.66666667,54.66666667,3,1.584962501
+Alphaproteobacteria,14: g_Mesorhizobium ,0.188822263,35,4.2,2,1
+Bacteroidetes,15: g_Sphingobacteria,0.368842702,124,124,4,2
+Actinobacteria,16: g_Frigoribacterium,0.162896372,254.3333333,254.3333333,1.57,0.650764559
+Firmicutes,17: f_Paenibacillaceae,0.346821177,34.33333333,34.33333333,10.75,3.426264755
+Verrucomicrobia,18: g_Chthoniobacter,0.404744763,29.33333333,29.33333333,1,0
+Gammaproteobacteria,19: g_Pseudoxanthomonas,0.645969797,181.6666667,181.6666667,1.5,0.584962501
+Bacteroidetes,21: g_Pedobacter,0.631262944,124,124,3,1.584962501
+Alphaproteobacteria,22: g_Brevundimonas,0.479390715,87,87,2,1
+Gemmatimonadetes,23: f_Gemmatimonadaceae,0.232493774,32,32,1,0
+Betaproteobacteria,24: g_Pusillimonas,0.443725762,39.33333333,39.33333333,2,1
+Bacteroidetes,25: g_Pedobacter,0.524581762,48.33333333,48.33333333,3,1.584962501
+Gammaproteobacteria,26: f_Pseudoxanthomonas,0.523365949,79.33333333,79.33333333,1.5,0.584962501
+Betaproteobacteria,27: g_Pusillimonas,0.216185255,77.66666667,77.66666667,2,1
+Alphaproteobacteria,28: g_Sphingomonas,0.182990549,101.3333333,101.3333333,2.33,1.220329955
+Verrucomicrobia,29: f_DA101 soil group,,-371,-2.292682927,1,0
+Acidobacteria,30: c_Acidobacteria|f_SG6,,-125,-6.136986301,1.33,0.411426246
+Alphaproteobacteria,31: f_Xanthobacteraceae,,-190,-4.294797688,2,1
+Deltaproteobacteria,32: o_GR-WP33-30,,-83.33333333,-3.192982456,2,1
+Verrucomicrobia,33: f_DA101 soil group,,-32,-2.215189873,1,0
+Verrucomicrobia,34: f_FukuN18 freshwater ,,-44.66666667,-5.620689655,1,0
+Alphaproteobacteria,35: o_Rhodospirillales,,-52,-5.588235294,4,2
+Thaumarchaeota,36: o_Soil Crenarchaeotic Group,,-51.66666667,-12.92307692,1,0
