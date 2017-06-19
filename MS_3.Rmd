@@ -1,5 +1,5 @@
 # Response to nitrogen addition reveals metabolic and ecological strategies of soil bacteria
-#### R script file. 
+#### R script file 
 
 
 #### Install and run R packages
