@@ -1,0 +1,1239 @@
+# Response to nitrogen addition reveals metabolic and ecological strategies of soil bacteria
+#### R script file. 
+
+
+#### Install and run R packages
+```{r Load libraries and data}
+library(phyloseq)  
+library(ggplot2)
+library(plyr)
+library(scales)
+library(reshape)
+library(reshape2)
+library(RColorBrewer)
+library(grid)
+library(dplyr)
+library(vegan)
+library(mpmcorrelogram)
+
+uzdir <- "/file path/Manuscript_3_R_data/"
+otutable_biom_file <- paste(uzdir, "113_soils_merged_otu_table.json", sep = "")
+map_file <- paste(uzdir, "113_cDNA_DNA_mapping file_FINAL.txt", sep = "")
+```
+
+```{r Create phyloseq object}
+# Now import the .biom-formatted otu_table-tax_table file.
+
+biom_otu_tax <- import_biom(otutable_biom_file)
+
+# Add sample data to the dataset using merge
+bmsd <- import_qiime_sample_data(map_file)
+class(bmsd)
+dim(bmsd)
+sample_data(bmsd)
+biom_otu_tax
+
+
+##### Merge into phyloseq format
+SS1_phyloseq <- merge_phyloseq(biom_otu_tax, bmsd)
+SS1_phyloseq
+sample_sums(SS1_phyloseq)
+
+###### Save original phyloseq file
+SS1_phyloseq0 = SS1_phyloseq
+```
+
+##### Create average result for multiple rarefaction by transforming data using (divide by 10) and check counts per sample
+```{r Create average result for multiple rarefaction by transforming data using (divide by 10), results='markup'}
+SS1_phyloseq = transform_sample_counts(SS1_phyloseq, function(x) x/10)
+sample_sums(SS1_phyloseq)
+```
+
+##### Round and confirm count number
+```{r Round and confirm count number, results='markup'}
+SS1_phyloseq = transform_sample_counts(SS1_phyloseq, round)
+sample_sums(SS1_phyloseq)
+#check that all numbers are integers
+otu_table_df<- as.data.frame(otu_table(SS1_phyloseq))
+```
+
+##### Check that all OTUs have representative counts  
+
+```{r identify taxa with only zeros, results='markup', echo=TRUE}
+sum(taxa_sums(SS1_phyloseq) > 0)
+any(taxa_sums(SS1_phyloseq)== 0)
+sum(taxa_sums(SS1_phyloseq) == 0)
+any(taxa_sums(SS1_phyloseq) > 1)
+sum(taxa_sums(SS1_phyloseq) > 1)
+any(taxa_sums(SS1_phyloseq) < 1)
+sum(taxa_sums(SS1_phyloseq) < 1)
+```
+
+##### Prune taxa with less than 1 count and check taxa numbers again
+
+```{r  Save original file and create new file with only present (no zeroes) taxa, results='markup', echo=TRUE}
+
+#Create new file with only present (no zeroes) taxa
+
+SS1_phyloseq = prune_taxa(taxa_sums(SS1_phyloseq) > 1, SS1_phyloseq)
+any(sample_sums(SS1_phyloseq) == 0)
+any(sample_sums(SS1_phyloseq) > 0)
+sum(taxa_sums(SS1_phyloseq) > 0)
+any(sample_sums(SS1_phyloseq) < 1)
+sum(taxa_sums(SS1_phyloseq) < 1)
+```
+
+##### Compare sequences per sample or OTU
+```{r Compare sequences per sample or OTU}
+readsumsdf = data.frame(nreads = sort(taxa_sums(SS1_phyloseq), TRUE), sorted = 1:ntaxa(SS1_phyloseq), 
+                        type = "OTU")
+readsumsdf = rbind(readsumsdf, data.frame(nreads = sort(sample_sums(SS1_phyloseq), 
+                                                        TRUE), sorted = 1:nsamples(SS1_phyloseq), type = "Samples"))
+title = "Total number of reads"
+p = ggplot(readsumsdf, aes(x = sorted, y = nreads)) + geom_bar(stat = "identity")
+p + ggtitle(title) + scale_y_log10() + facet_wrap(~type, 1, scales = "free")
+```
+
+```{r}
+sample_variables(SS1_phyloseq)
+```
+
+```{r Attached OTU ID}
+tax_table(SS1_phyloseq) <- cbind(tax_table(SS1_phyloseq), OTU=taxa_names(SS1_phyloseq))
+```
+
+```{r Rename Ranks}
+colnames(tax_table(SS1_phyloseq)) = c("Domain", "Phylum", "Class", "Order", "Family", "Genus", "Species", "OTU" )
+```
+
+
+##### Subset samples by experiment
+```{r}
+cDNA_phyloseq = subset_samples(SS1_phyloseq, Type == "cDNA")
+
+DNA_phyloseq = subset_samples(SS1_phyloseq, Type == "DNA")
+
+#or excluding field samples
+cDNA_phyloseq2 = subset_samples(SS1_phyloseq, Type2 == "cDNA")
+
+DNA_phyloseq2 = subset_samples(SS1_phyloseq, Type2 == "DNA")
+
+#Subset no Field sample 
+DNA_cDNA_phyloseq = subset_samples(SS1_phyloseq, Type3 == "DNA_cDNA")
+
+#Excluding Day 0
+DNA_HM_phyloseq = subset_samples(DNA_phyloseq, Group == "HM")
+DNA_LM_phyloseq = subset_samples(DNA_phyloseq, Group == "LM")
+cDNA_HM_phyloseq = subset_samples(cDNA_phyloseq, Group == "HM")
+cDNA_LM_phyloseq = subset_samples(cDNA_phyloseq, Group == "LM")
+
+```
+
+
+#### Plot alpha diversity
+```{r, echo=FALSE}
+#####NB. if you want to calculate and export diversity data then use the below command
+#####name_cDNA= estimate_richness(cDNA_phyloseq, split = TRUE, measures = NULL)
+#####write.table(name_cDNA, "/file path/name_cDNA.txt", sep="\t")
+
+#####name_DNA= estimate_richness(DNA_phyloseq, split = TRUE, measures = NULL)
+#####write.table(name_DNA, "/file path/name_DNA.txt", sep="\t")
+
+#### Plot alpha diversity cDNA level
+##### richness plots
+
+plot_richness(cDNA_phyloseq2, measures = c("Observed"), x = "Day") + geom_text(aes(label = " "), size = 4) + geom_boxplot(alpha = 1) + theme_bw() + theme(axis.text.x = element_text(hjust = 0.5, size = 16, color = "black"), axis.text.y = element_text(size = 16, color = "black"), axis.title.y = element_text(vjust = 1, size = 16),
+        axis.title.x = element_text(size = 16), strip.text.x = element_text(size = 16)) + facet_grid(.~Treatment, drop = TRUE, space = "free", scales = "free") + ylab("Observed")
+
+#### Shannon diversity
+plot_richness(cDNA_phyloseq2, measures = c("Shannon"), x = "Day") + geom_text(aes(label = " "), size = 4) + geom_boxplot(alpha = 1) + theme_bw() + theme(axis.text.x = element_text(hjust = 0.5, size = 16, color = "black"), axis.text.y = element_text(size = 16, color = "black"), axis.title.y = element_text(vjust = 1, size = 16),
+        axis.title.x = element_text(size = 16), strip.text.x = element_text(size = 16)) + facet_grid(.~Treatment, drop = TRUE, space = "free", scales = "free") + ylab("Shannon Diversity")
+
+```
+
+##### Plot alpha diversity at 16s rDNA level
+
+```{r, echo=FALSE}
+#### richness plots
+
+plot_richness(DNA_phyloseq, measures = c("Observed"), x = "Day") + geom_text(aes(label = " "), size = 4) + geom_boxplot(alpha = 1) + theme_bw() + theme(axis.text.x = element_text(hjust = 0.5, size = 16, color = "black"), axis.text.y = element_text(size = 16, color = "black"), axis.title.y = element_text(vjust = 1, size = 16),
+        axis.title.x = element_text(size = 16), strip.text.x = element_text(size = 16)) + facet_grid(.~Treatment, drop = TRUE, space = "free", scales = "free") + ylab("Observed")
+
+
+plot_richness(DNA_phyloseq, measures = c("Shannon"), x = "Day") + geom_text(aes(label = " "), size = 4) + geom_boxplot(alpha = 1) + theme_bw() + theme(axis.text.x = element_text(hjust = 0.5, size = 16, color = "black"), axis.text.y = element_text(size = 16, color = "black"), axis.title.y = element_text(vjust = 1, size = 16),
+        axis.title.x = element_text(size = 16), strip.text.x = element_text(size = 16)) + facet_grid(.~Treatment, drop = TRUE, space = "free", scales = "free") + ylab("Shannon Diversity")
+```
+
+#### Subset samples by experiment (optional)
+```{r}
+Control_phyloseq = subset_samples(sainur_phyloseq, Treatment == "Control")
+
+No_Urea_10kPa_phyloseq = subset_samples(sainur_phyloseq, Treatment == "No_Urea_10kPa")
+
+No_Urea_1.0kPa_phyloseq = subset_samples(sainur_phyloseq, Treatment == "No_Urea_1.0kPa")
+
+Urea_1.0kPa_phyloseq = subset_samples(sainur_phyloseq, Treatment == "Urea_1.0kPa")
+
+Urea_10kPa_phyloseq = subset_samples(sainur_phyloseq, Treatment == "Urea_10kPa")
+
+```
+
+#### Figure S8 (Phylum level changes (relative abundance) in genome (16S rDNA) and transcript (16S rRNA) levels representing relative contribution >1% of all detected phyla (based on OTUs clustered at 97% sequence similarity)
+```{r Figure S8}
+sainur_phylum <- DNA_cDNA_phyloseq %>% tax_glom(taxrank = "Phylum") %>%   
+# agglomerate at phylum level
+  transform_sample_counts(function(x) {x/sum(x)} ) %>%
+# Transform to rel. abundance
+  psmelt() %>%                
+# Melt to long format
+  filter(Abundance > 0.01) %>%                         
+# Filter out low abundance taxa
+  arrange(Phylum)  
+  
+phylum_colors <- c(
+  "#CBD588", "#5F7FC7", "orange","#DA5724", "#508578", "#CD9BCD",
+   "#AD6F3B", "#673770","#C84248", "#652926","#D14285", 
+  "black", "#8A7C64", "#599861","#8569D5", "#5E738F")
+
+color_labels=c("Acidobacteria", "Actinobacteria", "Bacteroidetes","Candidate division WS3","Chloroflexi","Cyanobacteria", "Firmicutes", "Gemmatimonadetes","Nitrospirae","Planctomycetes", "Proteobacteria", "Thaumarchaeota","Verrucomicrobia") 
+
+#Day as factor
+n_Day  <- factor(sainur_phylum$Day2)
+
+library(Rmisc)
+tg <- summarySE(sainur_phylum, measurevar="Abundance", groupvars=c("Sites2","n_Day","Phylum", "Treatment4"))
+tg
+require(grid)
+require(plyr)
+library(ggplot2)
+
+pd <- position_dodge(0.001) # move them .05 to the left and right
+
+f_DNA_cDNA=ggplot(tg, aes(x=n_Day, y=Abundance, group=Treatment4, fill = Phylum)) + 
+
+  
+  facet_wrap(~Treatment4, ncol = 2, scales = "free_y") +
+  
+ geom_bar(stat = "identity") +
+  scale_fill_manual(values = phylum_colors,labels=color_labels)  +
+  xlab("Day")+
+  
+  # Remove x axis title
+  theme(axis.title.x = element_blank()) + 
+  #
+   theme_bw()+
+   theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+        strip.text.x = element_text(size=12, angle=0)) +
+  guides(fill = guide_legend(reverse = T, keywidth = 1, keyheight = 1)) +
+  ylab("Relative abundance (Phyla > 1%) \n") + 
+ 
+  ggtitle("") 
+f_DNA_cDNA
+
+
+a= b+ scale_fill_manual(name="Phylum",values = c("grey26", "royalblue", "darkorange","chartreuse3",  "red", "#D3D93E", "#38333E", "#ff3cbb","cyan2", "darkgreen", "deepskyblue", "mediumorchid3","#89C5DA", "#DA5724", "#74D944", "#C84248", "#673770", "#D3D93E", "#38333E", "#508578", "#D7C1B1", "#689030", "#AD6F3B", "#CD9BCD", "#D14285", "#6DDE88", "#CD9BCD", "#D14285", "#6DDE88", "#652926", "#7FDCC0", "#8569D5", "#5E738F", "#D1A33D", "#8A7C64", "#599861", "blue4", "yellow1", "violetred", "#CD9BCD", "#D14285", "#6DDE88", "#652926", "#7FDCC0", "#8569D5", "#5E738F", "#D1A33D", "#8A7C64", "#599861", "blue4", "yellow1", "violetred", "#990000", "#99CC00", "#003300", "#00CCCC", "#9966CC", "#993366", "#990033", "#4863A0", "#000033", "#330000", "#00CC99", "#00FF33", "#00CCFF", "#FF9933", "#660066", "#FF0066", "slateblue4", "tan4", "tomato4", "steelblue", "springgreen4", "snow4", "slategray2", "plum1", "yellow", "sienna"),
+                        
+
+
+labels=c("Acidobacteria", "Actinobacteria", "Bacteroidetes","Chloroflexi", "Firmicutes", "Gemmatimonadetes","Planctomycetes", "Proteobacteria", "Thaumarchaeota","Verrucomicrobia") )
+
+```
+
+### Figure 2b (16S rDNA & 16S rRNA)
+``` {r Figure 2b}
+
+title = "DNA"
+#par(mfrow=c(2,1))
+DNA.ord = ordinate( DNA_phyloseq, "NMDS", "bray")
+p = plot_ordination(DNA_phyloseq, DNA.ord, color = "Day", shape = "Treatment")+
+  scale_color_manual(values = c("#a65628", "red", "#ffae19",
+    "#4daf4a", "#1919ff", "darkorchid3", "magenta"))
+p = p + geom_point(size = 4, alpha = 0.7) + theme_bw()+theme(text = element_text(size = 17))+ggtitle(title)
+#p
+
+
+#Stress plot (Figure S4)
+stressplot(DNA.ord)
+DNA.ord
+
+
+title = "cDNA"
+RNA.ord = ordinate(cDNA_phyloseq, "NMDS", "bray")
+q = plot_ordination(cDNA_phyloseq, RNA.ord, color = "Day", shape = "Treatment")+
+  scale_color_manual(values = c("#a65628", "red", "#ffae19",
+    "#4daf4a", "#1919ff", "darkorchid3", "magenta"))
+q = q + geom_point(size = 4, alpha = 0.7) + theme_bw()+theme(text = element_text(size = 17))+ggtitle(title)
+
+#q
+#Stress plot (Figure S4)
+stressplot(RNA.ord)
+RNA.ord
+
+
+library(grid)
+multiplot(p, q,cols=1)
+```
+
+#### Adonis test
+``` {r Adonis test }
+library("phyloseq")
+library ("vegan")
+all_OTUs = names(sort(taxa_sums(DNA_phyloseq2), TRUE))
+GPex = prune_taxa(all_OTUs, DNA_phyloseq2)
+GPdist = phyloseq::distance(GPex, "bray")
+GPNMDS = ordinate(GPex, "NMDS", GPdist)
+adonis(GPdist ~ Treatment1, as(sample_data(GPex), "data.frame"))
+
+#####results:
+
+#           Df SumsOfSqs MeanSqs F.Model      R2 Pr(>F)    
+#Treatment1  1    2.1149  2.1149  18.045 0.26135  0.001 ***
+#Residuals  51    5.9773  0.1172         0.73865           
+#Total      52    8.0922                 1.00000  
+
+
+
+##cDNA (16S rRNA)
+library("phyloseq")
+library ("vegan")
+all_OTUs = names(sort(taxa_sums(cDNA_phyloseq2), TRUE))
+SSex = prune_taxa(all_OTUs, cDNA_phyloseq2)
+SSdist = phyloseq::distance(SSex, "bray")
+SSNMDS = ordinate(SSex, "NMDS", SSdist)
+adonis(SSdist ~ Treatment1, as(sample_data(SSex), "data.frame"))
+
+#######results:
+#           Df SumsOfSqs MeanSqs F.Model      R2 Pr(>F)    
+#Treatment1  1    4.0404  4.0404   26.27 0.33563  0.001 ***
+#Residuals  52    7.9978  0.1538         0.66437           
+#Total      53   12.0381                 1.00000    
+
+````
+
+
+#### Mantel Correlation
+```{r Figure 2c and S6 }
+###subset samples by Treatments (DNA)
+
+No_Urea_10kPa_phyloseq = subset_samples(DNA_phyloseq , Treatment_R1 == "No_Urea_10kPa")
+
+No_Urea_1.0kPa_phyloseq = subset_samples(DNA_phyloseq , Treatment_R1 == "No_Urea_1.0kPa")
+
+Urea_1.0kPa_phyloseq = subset_samples(DNA_phyloseq, Treatment_R1 == "Urea_1.0kPa")
+
+Urea_10kPa_phyloseq = subset_samples(DNA_phyloseq, Treatment_R1 == "Urea_10kPa")
+
+###subset samples by Treatments (cDNA)
+
+No_Urea_10kPa_phyloseq_cDNA = subset_samples(cDNA_phyloseq , Treatment_R1 == "No_Urea_10kPa")
+
+No_Urea_1.0kPa_phyloseq_cDNA = subset_samples(cDNA_phyloseq , Treatment_R1 == "No_Urea_1.0kPa")
+
+Urea_1.0kPa_phyloseq_cDNA = subset_samples(cDNA_phyloseq, Treatment_R1 == "Urea_1.0kPa")
+
+Urea_10kPa_phyloseq_cDNA = subset_samples(cDNA_phyloseq, Treatment_R1 == "Urea_10kPa")
+
+## DNA: HM+Urea
+library(vegan)
+library(mpmcorrelogram)
+#x.dis:Multivariate distance (or similarity) matrices
+Bry_urea_HM <- as.matrix(phyloseq::distance(Urea_1.0kPa_phyloseq, method="bray"))
+#GeoDis or timeDis
+df_time <- as(sample_data(Urea_1.0kPa_phyloseq ), "data.frame")
+Day.dist_HM <- dist(df_time$Day_order)
+dist.matrix_HM <- as.matrix(Day.dist_HM)
+
+par(mfrow=c(2,2))
+
+
+x=mpmcorrelogram(Bry_urea_HM,Day.dist_HM, zdis=NULL, method = "spearman",
+alfa = 0.05, nclass =NULL, breaks = c(1,2,3,4,5,6),
+permutations = 999, simil = T,
+plot = F, print = TRUE)
+plot(x, pch = c(19, 1), xlim = c(0.5,5.5), ylim = c(-1,1),
+ylab = "Mantel correlation coefficient", xlab = "Distance class (Time series)", alfa = 0.05)
+abline(h=0,col="gray", lty =2)
+legend(x=4,y=-0.5,"HM+N",cex=1,
+        col="black",bty = "n")
+legend(x=0,y=0.5,"16SrDNA",cex=1, col="black",bty = "n")
+
+### LM+Urea
+Bry_urea_LM <- as.matrix(phyloseq::distance(Urea_10kPa_phyloseq , method="bray"))
+df_time <- as(sample_data(Urea_10kPa_phyloseq ), "data.frame")
+Day.dist_LM <- dist(df_time$Day_order)
+dist.matrix_LM <- as.matrix(Day.dist_LM)
+
+y=mpmcorrelogram(Bry_urea_LM,dist.matrix_LM, zdis=NULL, method = "spearman",
+alfa = 0.05, nclass = NULL, breaks = c(1,2,3,4,5,6),
+permutations = 999, simil = T,
+plot = F, print = TRUE)
+plot(y, pch = c(19, 1), xlim = c(0.5,5.5), ylim = c(-1,1),
+ylab = "Mantel correlation coefficient", xlab = "Distance class (Time series)", alfa = 0.05)
+abline(h=0,col="gray", lty =2)
+legend(x=4,y=-0.5,"LM+N",cex=1,
+        col="black",bty = "n")
+        legend(x=0,y=0.5,"16rDNA",cex=1,col="black",bty = "n")
+
+#cDNA
+Bry_urea_HM_cDNA <- as.matrix(phyloseq::distance(Urea_1.0kPa_phyloseq_cDNA , method="bray"))
+df_time <- as(sample_data(Urea_1.0kPa_phyloseq_cDNA ), "data.frame")
+Day.dist_HM_cDNA <- dist(df_time$Day_order)
+dist.matrix_HM <- as.matrix(Day.dist_HM_cDNA)
+
+z=mpmcorrelogram(Bry_urea_HM_cDNA,Day.dist_HM_cDNA, zdis=NULL, method = "spearman",
+alfa = 0.05, nclass = NULL, breaks = c(1,2,3,4,5,6),
+permutations = 999, simil = T,
+plot = F, print = TRUE)
+plot(z, pch = c(19, 1), xlim = c(0.5,5.5), ylim = c(-1,1),
+ylab = "Mantel correlation coefficient", xlab = "Distance class (Time series)", alfa = 0.05)
+abline(h=0,col="gray", lty =2)
+legend(x=4,y=-0.5,"HM+N",cex=1,
+        col="black",bty = "n")
+    legend(x=0,y=0.5,"16rRNA",cex=1,col="black",bty = "n")
+
+### LM+Urea
+Bry_urea_LM_cDNA <- as.matrix(phyloseq::distance(Urea_10kPa_phyloseq_cDNA , method="bray"))
+df_time <- as(sample_data(Urea_10kPa_phyloseq_cDNA ), "data.frame")
+Day.dist_LM_cDNA <- dist(df_time$Day_order)
+dist.matrix_LM <- as.matrix(Day.dist_HM_cDNA)
+
+z=mpmcorrelogram(Bry_urea_LM_cDNA,Day.dist_LM_cDNA, zdis=NULL, method = "spearman",
+alfa = 0.05, nclass = NULL, breaks = c(1,2,3,4,5,6),
+permutations = 999, simil = T,
+plot = F, print = TRUE)
+plot(z, pch = c(19, 1), xlim = c(0.5,5.5), ylim = c(-1,1),
+ylab = "Mantel correlation coefficient", xlab = "Distance class (Time series)", alfa = 0.05)
+abline(h=0,col="gray", lty =2)
+legend(x=4,y=-0.5,"LM+N",cex=1,
+        col="black",bty = "n")
+
+ legend(x=0,y=0.5,"16rRNA",cex=1,col="black",bty = "n")
+
+####Similar results were observed for second (R2) and third replicates (R3)
+ 
+####Second replicate R2
+
+No_Urea_10kPa_phyloseq = subset_samples(DNA_phyloseq , Treatment_R2 == "No_Urea_10kPa")
+
+No_Urea_1.0kPa_phyloseq = subset_samples(DNA_phyloseq , Treatment_R2 == "No_Urea_1.0kPa")
+
+Urea_1.0kPa_phyloseq = subset_samples(DNA_phyloseq, Treatment_R2 == "Urea_1.0kPa")
+
+Urea_10kPa_phyloseq = subset_samples(DNA_phyloseq, Treatment_R2 == "Urea_10kPa")
+
+###subset samples by Treatments (cDNA)
+
+No_Urea_10kPa_phyloseq_cDNA = subset_samples(cDNA_phyloseq , Treatment_R2 == "No_Urea_10kPa")
+
+No_Urea_1.0kPa_phyloseq_cDNA = subset_samples(cDNA_phyloseq , Treatment_R2 == "No_Urea_1.0kPa")
+
+Urea_1.0kPa_phyloseq_cDNA = subset_samples(cDNA_phyloseq, Treatment_R2 == "Urea_1.0kPa")
+
+Urea_10kPa_phyloseq_cDNA = subset_samples(cDNA_phyloseq, Treatment_R2 == "Urea_10kPa")
+
+## DNA: HM+Urea
+library(vegan)
+library(mpmcorrelogram)
+#x.dis:Multivariate distance (or similarity) matrices
+Bry_urea_HM <- as.matrix(phyloseq::distance(Urea_1.0kPa_phyloseq, method="bray"))
+#GeoDis or timeDis
+df_time <- as(sample_data(Urea_1.0kPa_phyloseq ), "data.frame")
+Day.dist_HM <- dist(df_time$Day_order)
+dist.matrix_HM <- as.matrix(Day.dist_HM)
+
+par(mfrow=c(2,2))
+
+
+x=mpmcorrelogram(Bry_urea_HM,Day.dist_HM, zdis=NULL, method = "spearman",
+alfa = 0.05, nclass =NULL, breaks = c(1,2,3,4,5,6),
+permutations = 999, simil = T,
+plot = F, print = TRUE)
+plot(x, pch = c(19, 1), xlim = c(0.5,5.5), ylim = c(-1,1),
+ylab = "Mantel correlation coefficient", xlab = "Distance class (Time series)", alfa = 0.05)
+abline(h=0,col="gray", lty =2)
+legend(x=4,y=0.9,"HM+N",cex=1,
+        col="black",bty = "n")
+legend(x=0,y=0.5,"16rDNA",cex=1, col="black",bty = "n")
+
+### LM+Urea
+Bry_urea_LM <- as.matrix(phyloseq::distance(Urea_10kPa_phyloseq , method="bray"))
+df_time <- as(sample_data(Urea_10kPa_phyloseq ), "data.frame")
+Day.dist_LM <- dist(df_time$Day_order)
+dist.matrix_LM <- as.matrix(Day.dist_LM)
+
+y=mpmcorrelogram(Bry_urea_LM,dist.matrix_LM, zdis=NULL, method = "spearman",
+alfa = 0.05, nclass = NULL, breaks = c(1,2,3,4,5,6),
+permutations = 999, simil = T,
+plot = F, print = TRUE)
+plot(y, pch = c(19, 1), xlim = c(0.5,5.5), ylim = c(-1,1),
+ylab = "Mantel correlation coefficient", xlab = "Distance class (Time series)", alfa = 0.05)
+abline(h=0,col="gray", lty =2)
+legend(x=4,y=0.9,"LM+N",cex=1,
+        col="black",bty = "n")
+        legend(x=0,y=0.5,"16rDNA",cex=1,col="black",bty = "n")
+
+#cDNA
+Bry_urea_HM_cDNA <- as.matrix(phyloseq::distance(Urea_1.0kPa_phyloseq_cDNA , method="bray"))
+df_time <- as(sample_data(Urea_1.0kPa_phyloseq_cDNA ), "data.frame")
+Day.dist_HM_cDNA <- dist(df_time$Day_order)
+dist.matrix_HM <- as.matrix(Day.dist_HM_cDNA)
+
+z=mpmcorrelogram(Bry_urea_HM_cDNA,Day.dist_HM_cDNA, zdis=NULL, method = "spearman",
+alfa = 0.05, nclass = NULL, breaks = c(1,2,3,4,5,6),
+permutations = 999, simil = T,
+plot = F, print = TRUE)
+plot(z, pch = c(19, 1), xlim = c(0.5,5.5), ylim = c(-1,1),
+ylab = "Mantel correlation coefficient", xlab = "Distance class (Time series)", alfa = 0.05)
+abline(h=0,col="gray", lty =2)
+legend(x=4,y=0.9,"HM+N",cex=1,
+        col="black",bty = "n")
+    legend(x=0,y=0.5,"16rRNA",cex=1,col="black",bty = "n")
+
+### LM+Urea
+Bry_urea_LM_cDNA <- as.matrix(phyloseq::distance(Urea_10kPa_phyloseq_cDNA , method="bray"))
+df_time <- as(sample_data(Urea_10kPa_phyloseq_cDNA ), "data.frame")
+Day.dist_LM_cDNA <- dist(df_time$Day_order)
+dist.matrix_LM <- as.matrix(Day.dist_HM_cDNA)
+
+z=mpmcorrelogram(Bry_urea_LM_cDNA,Day.dist_LM_cDNA, zdis=NULL, method = "spearman",
+alfa = 0.05, nclass = NULL, breaks = c(1,2,3,4,5,6),
+permutations = 999, simil = T,
+plot = F, print = TRUE)
+plot(z, pch = c(19, 1), xlim = c(0.5,5.5), ylim = c(-1,1),
+ylab = "rM", xlab = "Distance class (Time series)", alfa = 0.05)
+abline(h=0,col="gray", lty =2)
+legend(x=4,y=0.9,"LM+N",cex=1,
+        col="black",bty = "n")
+  legend(x=0,y=0.5,"16rRNA",cex=1,col="black",bty = "n")
+
+
+
+###Third replicate R3 
+
+No_Urea_10kPa_phyloseq = subset_samples(DNA_phyloseq , Treatment_R3 == "No_Urea_10kPa")
+
+No_Urea_1.0kPa_phyloseq = subset_samples(DNA_phyloseq , Treatment_R3 == "No_Urea_1.0kPa")
+
+Urea_1.0kPa_phyloseq = subset_samples(DNA_phyloseq, Treatment_R3 == "Urea_1.0kPa")
+
+Urea_10kPa_phyloseq = subset_samples(DNA_phyloseq, Treatment_R3 == "Urea_10kPa")
+###subset samples by Treatments (cDNA)
+
+No_Urea_10kPa_phyloseq_cDNA = subset_samples(cDNA_phyloseq , Treatment_R3 == "No_Urea_10kPa")
+
+No_Urea_1.0kPa_phyloseq_cDNA = subset_samples(cDNA_phyloseq , Treatment_R3 == "No_Urea_1.0kPa")
+
+Urea_1.0kPa_phyloseq_cDNA = subset_samples(cDNA_phyloseq, Treatment_R3 == "Urea_1.0kPa")
+
+Urea_10kPa_phyloseq_cDNA = subset_samples(cDNA_phyloseq, Treatment_R3 == "Urea_10kPa")
+
+## DNA: HM+Urea
+library(vegan)
+library(mpmcorrelogram)
+#x.dis:Multivariate distance (or similarity) matrices
+Bry_urea_HM <- as.matrix(phyloseq::distance(Urea_1.0kPa_phyloseq, method="bray"))
+#GeoDis or timeDis
+df_time <- as(sample_data(Urea_1.0kPa_phyloseq ), "data.frame")
+Day.dist_HM <- dist(df_time$Day_order)
+dist.matrix_HM <- as.matrix(Day.dist_HM)
+
+par(mfrow=c(2,2))
+
+
+
+x=mpmcorrelogram(Bry_urea_HM,Day.dist_HM, zdis=NULL, method = "spearman",
+alfa = 0.05, nclass =NULL, breaks = c(1,2,3,4,5,6),
+permutations = 9999, simil = T,
+plot = F, print = TRUE)
+plot(x, pch = c(19, 1), xlim = c(0.5,5.5), ylim = c(-1,1),
+ylab = "Mantel correlation coefficient", xlab = "Distance class (Time series)", alfa = 0.05)
+abline(h=0,col="gray", lty =2)
+legend(x=4,y=0.9,"HM+N",cex=1,
+        col="black",bty = "n")
+legend(x=0,y=0.5,"16rDNA",cex=1, col="black",bty = "n")
+
+### LM+Urea
+Bry_urea_LM <- as.matrix(phyloseq::distance(Urea_10kPa_phyloseq , method="bray"))
+df_time <- as(sample_data(Urea_10kPa_phyloseq ), "data.frame")
+Day.dist_LM <- dist(df_time$Day_order)
+dist.matrix_LM <- as.matrix(Day.dist_LM)
+
+y=mpmcorrelogram(Bry_urea_LM,dist.matrix_LM, zdis=NULL, method = "spearman",
+alfa = 0.05, nclass = NULL, breaks = c(1,2,3,4,5,6),
+permutations = 999, simil = T,
+plot = F, print = TRUE)
+plot(y, pch = c(19, 1), xlim = c(0.5,5.5), ylim = c(-1,1),
+ylab = "Mantel correlation coefficient", xlab = "Distance class (Time series)", alfa = 0.05)
+abline(h=0,col="gray", lty =2)
+legend(x=4,y=0.9,"LM+N",cex=1,
+        col="black",bty = "n")
+        legend(x=0,y=0.5,"16rDNA",cex=1,col="black",bty = "n")
+
+#cDNA
+Bry_urea_HM_cDNA <- as.matrix(phyloseq::distance(Urea_1.0kPa_phyloseq_cDNA , method="bray"))
+df_time <- as(sample_data(Urea_1.0kPa_phyloseq_cDNA ), "data.frame")
+Day.dist_HM_cDNA <- dist(df_time$Day_order)
+dist.matrix_HM <- as.matrix(Day.dist_HM_cDNA)
+
+z=mpmcorrelogram(Bry_urea_HM_cDNA,Day.dist_HM_cDNA, zdis=NULL, method = "spearman",
+alfa = 0.05, nclass = NULL, breaks = c(1,2,3,4,5,6),
+permutations = 999, simil = T,
+plot = F, print = TRUE)
+plot(z, pch = c(19, 1), xlim = c(0.5,5.5), ylim = c(-1,1),
+ylab = "Mantel correlation coefficient", xlab = "Distance class (Time series)", alfa = 0.05)
+abline(h=0,col="gray", lty =2)
+legend(x=4,y=0.9,"HM+N",cex=1,
+        col="black",bty = "n")
+    legend(x=0,y=0.5,"16rRNA",cex=1,col="black",bty = "n")
+
+### LM+Urea
+Bry_urea_LM_cDNA <- as.matrix(phyloseq::distance(Urea_10kPa_phyloseq_cDNA , method="bray"))
+df_time <- as(sample_data(Urea_10kPa_phyloseq_cDNA ), "data.frame")
+Day.dist_LM_cDNA <- dist(df_time$Day_order)
+dist.matrix_LM <- as.matrix(Day.dist_HM_cDNA)
+
+z=mpmcorrelogram(Bry_urea_LM_cDNA,Day.dist_LM_cDNA, zdis=NULL, method = "spearman",
+alfa = 0.05, nclass = NULL, breaks = c(1,2,3,4,5,6),
+permutations = 999, simil = T,
+plot = F, print = TRUE)
+plot(z, pch = c(19, 1), xlim = c(0.5,5.5), ylim = c(-1,1),
+ylab = "rM", xlab = "Distance class (Time series)", alfa = 0.05)
+abline(h=0,col="gray", lty =2)
+legend(x=4,y=0.9,"LM+N",cex=1,
+        col="black",bty = "n")
+legend(x=0,y=0.5,"16rRNA",cex=1,col="black",bty = "n")
+
+
+###NO urea treatment (replicate 1, Figure S6)
+# subset samples 
+No_Urea_10kPa_phyloseq = subset_samples(DNA_phyloseq , Treatment_R1 == "No_Urea_10kPa")
+
+No_Urea_1.0kPa_phyloseq = subset_samples(DNA_phyloseq , Treatment_R1 == "No_Urea_1.0kPa")
+No_Urea_10kPa_phyloseq_cDNA = subset_samples(cDNA_phyloseq , Treatment_R1 == "No_Urea_10kPa")
+
+No_Urea_1.0kPa_phyloseq_cDNA = subset_samples(cDNA_phyloseq , Treatment_R1 == "No_Urea_1.0kPa")
+
+## DNA: HM+Urea
+library(vegan)
+library(mpmcorrelogram)
+#x.dis:Multivariate distance (or similarity) matrices
+Bry_urea_HM <- as.matrix(phyloseq::distance(No_Urea_1.0kPa_phyloseq, method="bray"))
+#GeoDis or timeDis
+df_time <- as(sample_data(No_Urea_1.0kPa_phyloseq), "data.frame")
+Day.dist_HM <- dist(df_time$Day_order)
+dist.matrix_HM <- as.matrix(Day.dist_HM)
+
+par(mfrow=c(2,2))
+
+
+x=mpmcorrelogram(Bry_urea_HM,Day.dist_HM, zdis=NULL, method = "spearman",
+alfa = 0.05, nclass =NULL, breaks = c(1,2,3,4),
+permutations = 999, simil = F,
+plot = F, print = TRUE)
+plot(x, pch = c(19, 1), xlim = c(0.5,4.5), ylim = c(-1,1),
+ylab = "Mantel correlation coefficient", xlab = "Distance class (Time series)", alfa = 0.05)
+abline(h=0,col="gray", lty =2)
+legend(x=3,y=-0.5,"HM-N",cex=1,
+        col="black",bty = "n")
+legend(x=0,y=-0.5,"16rDNA",cex=1, col="black",bty = "n")
+
+### LM+Urea
+Bry_urea_LM <- as.matrix(phyloseq::distance(No_Urea_10kPa_phyloseq, method="bray"))
+df_time <- as(sample_data(No_Urea_10kPa_phyloseq ), "data.frame")
+Day.dist_LM <- dist(df_time$Day_order)
+dist.matrix_LM <- as.matrix(Day.dist_LM)
+
+y=mpmcorrelogram(Bry_urea_LM,dist.matrix_LM, zdis=NULL, method = "spearman",
+alfa = 0.05, nclass = NULL, breaks = c(1,2,3,4),
+permutations = 999, simil = F,
+plot = F, print = TRUE)
+plot(y, pch = c(19, 1), xlim = c(0.5,4.5), ylim = c(-1,1),
+ylab = "Mantel correlation coefficient", xlab = "Distance class (Time series)", alfa = 0.05)
+abline(h=0,col="gray", lty =2)
+legend(x=3,y=-0.5,"LM-N",cex=1,
+        col="black",bty = "n")
+        legend(x=0,y=-0.5,"16rDNA",cex=1,col="black",bty = "n")
+
+#cDNA
+Bry_urea_HM_cDNA <- as.matrix(phyloseq::distance(No_Urea_1.0kPa_phyloseq_cDNA , method="bray"))
+df_time <- as(sample_data(No_Urea_1.0kPa_phyloseq_cDNA ), "data.frame")
+Day.dist_HM_cDNA <- dist(df_time$Day_order)
+dist.matrix_HM <- as.matrix(Day.dist_HM_cDNA)
+
+z=mpmcorrelogram(Bry_urea_HM_cDNA,Day.dist_HM_cDNA, zdis=NULL, method = "spearman",
+alfa = 0.05, nclass = NULL, breaks = c(1,2,3,4),
+permutations = 999, simil = F,
+plot = F, print = TRUE)
+plot(z, pch = c(19, 1), xlim = c(0.5,4.5), ylim = c(-1,1),
+ylab = "Mantel correlation coefficient", xlab = "Distance class (Time series)", alfa = 0.05)
+abline(h=0,col="gray", lty =2)
+legend(x=3,y=-0.5,"HM-N",cex=1,
+        col="black",bty = "n")
+    legend(x=0,y=-0.5,"16rRNA",cex=1,col="black",bty = "n")
+
+### LM+Urea
+Bry_urea_LM_cDNA <- as.matrix(phyloseq::distance(No_Urea_10kPa_phyloseq_cDNA , method="bray"))
+df_time <- as(sample_data(No_Urea_10kPa_phyloseq_cDNA ), "data.frame")
+Day.dist_LM_cDNA <- dist(df_time$Day_order)
+dist.matrix_LM <- as.matrix(Day.dist_HM_cDNA)
+
+z=mpmcorrelogram(Bry_urea_LM_cDNA,Day.dist_LM_cDNA, zdis=NULL, method = "spearman",
+alfa = 0.05, nclass = NULL, breaks = c(1,2,3,4),
+permutations = 999, simil = F,
+plot = F, print = TRUE)
+plot(z, pch = c(19, 1), xlim = c(0.5,4.5), ylim = c(-1,1),
+ylab = "Mantel correlation coefficient", xlab = "Distance class (Time series)", alfa = 0.05)
+abline(h=0,col="gray", lty =2)
+legend(x=3,y=-0.5,"LM-N",cex=1,
+        col="black",bty = "n")
+  legend(x=0,y=-0.5,"16rRNA",cex=1,col="black",bty = "n")
+
+```
+
+
+```{r SIMPER analysis}
+# SIMPER analysis (Groups LM and HM, Treatment= = +N and -N)
+#Create new file with only present (no zeroes) taxa
+
+DNA_HM_phyloseq = prune_taxa(taxa_sums(DNA_HM_phyloseq) > 1, DNA_HM_phyloseq)
+any(sample_sums(DNA_HM_phyloseq) == 0)
+any(sample_sums(DNA_HM_phyloseq) > 0)
+sum(taxa_sums(DNA_HM_phyloseq) > 0)
+any(sample_sums(DNA_HM_phyloseq) < 1)
+sum(taxa_sums(DNA_HM_phyloseq) < 1)
+
+#1. SIMPER (HM_DNA)
+phyloseq_mat <- data.frame(otu_table(DNA_HM_phyloseq))
+phyloseq_matt <- t(phyloseq_mat)
+phyloseq_sd <- data.frame(sample_data(DNA_HM_phyloseq))
+(sim_HM_DNA <- with(phyloseq_sd, simper(phyloseq_matt, Treatment1),permutations = 999))
+summary(sim_HM_DNA)
+result_HM <- summary(sim_HM_DNA) 
+lapply(sim_HM_DNA, FUN = function(x){x$overall})
+
+
+#export data
+sim_HM_DNA <- result_HM$"Urea_No Urea"
+write.table(sim_HM_DNA, "/file path/HM_DNA.txt",sep="\t")
+
+#2. SIMPER (LM_DNA)
+DNA_LM_phyloseq = prune_taxa(taxa_sums(DNA_LM_phyloseq) > 1, DNA_LM_phyloseq)
+any(sample_sums(DNA_LM_phyloseq) == 0)
+any(sample_sums(DNA_LM_phyloseq) > 0)
+sum(taxa_sums(DNA_LM_phyloseq) > 0)
+any(sample_sums(DNA_LM_phyloseq) < 1)
+sum(taxa_sums(DNA_LM_phyloseq) < 1)
+
+#SIMPER (LM_DNA)
+phyloseq_mat <- data.frame(otu_table(DNA_LM_phyloseq))
+phyloseq_matt <- t(phyloseq_mat)
+phyloseq_sd <- data.frame(sample_data(DNA_LM_phyloseq))
+(sim_LM_DNA <- with(phyloseq_sd, simper(phyloseq_matt, Treatment1),permutations = 999))
+summary(sim_LM_DNA)
+result_LH <- summary(sim_LM_DNA)
+lapply(sim_LM_DNA, FUN = function(x){x$overall})
+
+#Export file
+sim_LM_DNA <- result_LH $"No Urea_Urea"
+write.table(sim_LM_DNA, "/file path/LM_DNA.txt",sep="\t")
+
+
+#cDNA
+cDNA_HM_phyloseq = prune_taxa(taxa_sums(cDNA_HM_phyloseq) > 1, cDNA_HM_phyloseq)
+any(sample_sums(cDNA_HM_phyloseq) == 0)
+any(sample_sums(cDNA_HM_phyloseq) > 0)
+sum(taxa_sums(cDNA_HM_phyloseq) > 0)
+any(sample_sums(cDNA_HM_phyloseq) < 1)
+sum(taxa_sums(cDNA_HM_phyloseq) < 1)
+
+#SIMPER (HM_cDNA)
+phyloseq_mat <- data.frame(otu_table(cDNA_HM_phyloseq))
+phyloseq_matt <- t(phyloseq_mat)
+phyloseq_sd <- data.frame(sample_data(cDNA_HM_phyloseq))
+(sim_HM_cDNA <- with(phyloseq_sd, simper(phyloseq_matt, Treatment1),permutations = 999))
+summary(sim_HM_cDNA)
+result_HM_ccDNA <- summary(sim_HM_cDNA) 
+lapply(sim_HM_cDNA, FUN = function(x){x$overall})
+
+#export data
+sim_HM_cDNA <- result_HM_ccDNA$"No Urea_Urea"
+write.table(sim_HM_DNA, "/file path/HM_cDNA.txt",sep="\t")
+
+#2. SIMPER (LM_cDNA)
+cDNA_LM_phyloseq = prune_taxa(taxa_sums(cDNA_LM_phyloseq) > 1, cDNA_LM_phyloseq)
+any(sample_sums(cDNA_LM_phyloseq) == 0)
+any(sample_sums(cDNA_LM_phyloseq) > 0)
+sum(taxa_sums(cDNA_LM_phyloseq) > 0)
+any(sample_sums(cDNA_LM_phyloseq) < 1)
+sum(taxa_sums(cDNA_LM_phyloseq) < 1)
+
+#SIMPER (LM_DNA)
+phyloseq_mat <- data.frame(otu_table(cDNA_LM_phyloseq))
+phyloseq_matt <- t(phyloseq_mat)
+phyloseq_sd <- data.frame(sample_data(cDNA_LM_phyloseq))
+(sim_LM_cDNA <- with(phyloseq_sd, simper(phyloseq_matt, Treatment1),permutations = 999))
+summary(sim_LM_cDNA)
+result_LH_cDNA <- summary(sim_LM_cDNA) 
+lapply(sim_LM_cDNA, FUN = function(x){x$overall})
+
+
+#Export
+sim_LM_cDNA <- result_LH_cDNA $"Urea_No Urea"
+write.table(sim_LM_DNA, "/file path/LM_cDNA.txt",sep="\t")
+
+```
+
+#### Pvclust tree using bray distance and including p values for each node. [AU (approximately unbiased) BP (bootstrap probability)]. Boxes mark clusters with 95% confidence
+```{r Cluster tree with box marking 95percent confidence, Figure S5}
+library(pvclust)
+library("devtools") # used to source functions from the internet
+source_url("https://raw.githubusercontent.com/nielshanson/mp_tutorial/master/taxonomic_analysis/code/pvclust_bcdist.R")
+# alternatively, you might want to download the above function and load using source()
+# e.g. source('/where/I/downloaded/pvclust_bcdist.R')
+#extract otu information
+otus <- otu_table(DNA_phyloseq)
+otus_ss <- otus@.Data
+fit <- pvclust(otus_ss, method.hclust="ward", method.dist="bray–curtis", n=1000)
+   plot(fit) # dendogram with p values
+pvrect(fit, alpha=.95)
+```
+
+```{r t-test}
+#### t-test
+##### independent 2-group t-test, #t.test(y1,y2) # where y1 and y2 are numeric
+t_test<- read.csv("~/Documents/R_files/HM_rrn_t_test.csv", header=T)
+t_test
+t.test(t_test$Max.abundance_HM_H,t_test$Max.abundance_HM_L)
+#(p=t = 3.2014, df = 30.656, p-value = 0.003178)
+t.test(t_test$Fold.changes_HM_H,t_test$Fold.changes_HM_L)
+#(t = 2.7129, df = 22.423, p-value = 0.01258)
+t.test(t_test$Growth.rate_HM_H,t_test$Growth.rate_HM_L)
+#(t = 0.58204, df = 23.923, p-value = 0.566)
+
+t_test<- read.csv("~/Documents/R_files/LM_rrn_t_test.csv", header=T)
+
+t_test
+t.test(t_test$Max.abundance_LM_H,t_test$Max.abundance_LM_L)
+#(t = 3.5551, df = 21.617, p-value = 0.00181)
+t.test(t_test$Fold.changes_LM_H,t_test$Fold.changes_LM_L)
+#(t = 3.1705, df = 14.42, p-value = 0.0066)
+t.test(t_test$Growth.rate_LM_H,t_test$Growth.rate_LM_L)
+#(t = 0.97296, df = 20.382, p-value = 0.342)
+
+
+#best(HM/LM)_t
+t_test<- read.csv("~/Documents/R_files/best_rrn_t_test.csv", header=T)
+
+t.test(t_test$Growth_best_H,t_test$Growth_best_L)
+#(t = 0.72294, df = 25.938, p-value = 0.4762)
+t.test(t_test$Max_abundance_best_H,t_test$Max_abundance_best_L)
+#(t = 3.7407, df = 32.934, p-value = 0.0006993)
+t.test(t_test$Fold_changes_H,t_test$Fold_changes_L)
+#(t = 3.5184, df = 22.455, p-value = 0.001893)
+```
+
+##### Michaelis_Menten Model (Figure 7)
+```{r t-test}
+library(drc)
+library(grid)
+library(ggplot2)
+
+mn_test<- read.csv("~/Documents/R_files/HM_mn_test.csv", header=T)
+mn_test
+
+model.drm <- drm (Growth_Day_HM ~ rrn_copy_HM, data = mn_test, fct = MM.3())
+
+mml <- data.frame(rrn_copy_HM = seq(0, max(mn_test$rrn_copy_HM), length.out = 100))
+mml$Growth_Day_HM <- predict(model.drm, newdata = mml)
+
+#drawing graph in ggplot
+Phylum = mn_test$Phylum
+HM1=ggplot(mn_test, aes(x=rrn_copy_HM, y=Growth_Day_HM, color= Phylum)) +
+  xlab("rrn copy no.") +
+  ylab("Growth rate (per day)") +
+  ggtitle("HM") +
+  geom_point(alpha = 0.7, size =3) + 
+  theme_bw() +
+  scale_color_manual(values = c("#0AFD37", "red", "#ffae19",
+                                "#4daf4a", "#1919ff","#990000" , "magenta",
+                                "#3295ff", "#660066", 
+                                "#32ffe7", "black"))+
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank()) + 
+  geom_line(data = mml, aes(x = rrn_copy_HM, y = Growth_Day_HM), colour = "gray")
+HM1
+HM1= HM1 +theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank()) 
+HM1
+
+model.nls <- nls(Growth_Day_HM ~ Vm * rrn_copy_HM/(K+rrn_copy_HM), data = mn_test,   start = list(K = max(mn_test$Growth_Day_HM)/2, Vm = max(mn_test$Growth_Day_HM)))
+
+summary(model.drm)
+summary(model.nls)
+
+###Maximum
+model.drm <- drm (Max_abundance_HM ~ rrn_copy_HM, data = mn_test, fct = MM.2())
+
+mml <- data.frame(rrn_copy_HM = seq(0, max(mn_test$rrn_copy_HM), length.out = 100))
+mml$Max_abundance_HM <- predict(model.drm, newdata = mml)
+
+#drawing graph in ggplot
+
+Phylum = mn_test$Phylum
+HM2= ggplot(mn_test, aes(x = rrn_copy_HM, y = Max_abundance_HM, color =Phylum)) +
+  theme_bw() +
+  scale_color_manual(values = c("#0AFD37", "red", "#ffae19",
+                                "#4daf4a", "#1919ff","#990000" , "magenta",
+                                "#3295ff", "#660066", 
+                                "#32ffe7", "black"))+
+  xlab("rrn copy no.") +
+  ylab("Max. abundance") +
+  ggtitle("HM") +
+  geom_point(alpha = 0.7, size = 3) +
+  
+ 
+geom_line(data = mml, aes(x = rrn_copy_HM, y = Max_abundance_HM), colour = "gray")
+
+
+HM2= HM2 +theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank()) 
+HM2
+
+
+
+model.nls <- nls(Max_abundance_HM ~ Vm * rrn_copy_HM/(K+rrn_copy_HM), data = mn_test,   start = list(K = max(mn_test$Growth_Day_HM)/2, Vm = max(mn_test$Max_abundance_HM)))
+
+summary(model.drm)
+summary(model.nls)
+
+
+#Foldchnages_HM
+model.drm <- drm (Fold_changes_HM ~ rrn_copy_HM, data = mn_test, fct = MM.2())
+
+mml <- data.frame(rrn_copy_HM = seq(0, max(mn_test$rrn_copy_HM), length.out = 100))
+mml$Fold_changes_HM <- predict(model.drm, newdata = mml)
+
+#drawing graph in ggplot
+
+HM3= ggplot(mn_test, aes(x = rrn_copy_HM, y = Fold_changes_HM, color =Phylum)) +
+  theme_bw() +
+  scale_color_manual(values = c("#0AFD37", "red", "#ffae19",
+                                "#4daf4a", "#1919ff","#990000" , "magenta",
+                                "#3295ff", "#660066", 
+                                "#32ffe7", "black"))+
+  xlab("rrn copy no.") +
+  ylab("Fold change") +
+  ggtitle("HM") +
+  geom_point(alpha = 0.7, size=3) +
+  geom_line(data = mml, aes(x = rrn_copy_HM, y = Fold_changes_HM), colour = "gray")
+HM3
+
+HM3= HM3 +theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank()) 
+HM3
+
+model.nls <- nls(Fold_changes_HM ~ Vm * rrn_copy_HM/(K+rrn_copy_HM), data = mn_test,   start = list(K = max(mn_test$Growth_Day_HM)/2, Vm = max(mn_test$Fold_changes_HM)))
+
+summary(model.drm)
+summary(model.nls)
+
+###LM
+LM_test<- read.csv("~/Documents/R_files/LM_mn_test .csv", header=T)
+LM_test
+
+model.drm <- drm (Growth_Day_LM ~ rrn_copy_LM, data = LM_test, fct = MM.2())
+
+mml <- data.frame(rrn_copy_LM = seq(0, max(LM_test$rrn_copy_LM), length.out = 100))
+mml$Growth_Day_LM <- predict(model.drm, newdata = mml)
+
+#drawing graph in ggplot
+
+LM1=ggplot(LM_test, aes(x = rrn_copy_LM, y = Growth_Day_LM, color=Phylum)) +
+  theme_bw() +
+  scale_color_manual(values = c("#0AFD37", "red", "#ffae19",
+                                "#4daf4a", "#1919ff","#990000" , "magenta",
+                                "#3295ff", "#660066", 
+                                "#32ffe7", "black"))+
+  xlab("rrn copy no.") +
+  ylab("Growth rate (per day)") +
+  ggtitle("LM") +
+  geom_point(alpha = 0.7, size= 3) +
+  geom_line(data = mml, aes(x = rrn_copy_LM, y = Growth_Day_LM), colour = "gray")
+LM1
+LM1= LM1 +theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank()) 
+LM1
+
+
+model.nls <- nls(Growth_Day_LM ~ Vm * rrn_copy_LM/(K+rrn_copy_LM), data = LM_test,start = list(K = max(LM_test$Growth_Day_LM)/2, Vm = max(LM_test$Growth_Day_LM)))
+
+summary(model.drm)
+summary(model.nls)
+
+###Maximum
+model.drm <- drm (Max_abundance_LM ~ rrn_copy_LM, data = LM_test, fct = MM.2())
+
+mml <- data.frame(rrn_copy_LM = seq(0, max(LM_test$rrn_copy_LM), length.out = 100))
+mml$Max_abundance_LM <- predict(model.drm, newdata = mml)
+
+#drawing graph in ggplot
+
+LM2= ggplot(LM_test, aes(x = rrn_copy_LM, y = Max_abundance_LM, color=Phylum)) +
+  theme_bw() +
+  scale_color_manual(values = c("#0AFD37", "red", "#ffae19",
+                                "#4daf4a", "#1919ff","#990000" , "magenta",
+                                "#3295ff", "#660066", 
+                                "#32ffe7", "black"))+
+  xlab("rrn copy no.") +
+  ylab("Max. abundance") +
+  ggtitle("LM") +
+  geom_point(alpha = 0.7, size= 3) +
+  geom_line(data = mml, aes(x = rrn_copy_LM, y = Max_abundance_LM), colour = "gray")
+LM2
+LM2= LM2 +theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank()) 
+LM2
+
+model.nls <- nls(Max_abundance_LM ~ Vm * rrn_copy_LM/(K+rrn_copy_LM), data = LM_test,   start = list(K = max(LM_test$Growth_Day_LM)/2, Vm = max(LM_test$Max_abundance_LM)))
+
+summary(model.drm)
+summary(model.nls)
+
+
+#Foldchnages_HM
+model.drm <- drm (Fold_changes_LM ~ rrn_copy_LM, data = LM_test, fct = MM.2())
+
+mml <- data.frame(rrn_copy_LM = seq(0, max(LM_test$rrn_copy_LM), length.out = 100))
+mml$Fold_changes_LM <- predict(model.drm, newdata = mml)
+
+#drawing graph in ggplot
+
+LM3= ggplot(LM_test, aes(x = rrn_copy_LM, y = Fold_changes_LM, color = Phylum)) +
+  theme_bw() +
+  scale_color_manual(values = c("#0AFD37", "red", "#ffae19",
+                                "#4daf4a", "#1919ff","#990000" , "magenta",
+                                "#3295ff", "#660066", 
+                                "#32ffe7", "black"))+
+  xlab("rrn copy no.") +
+  ylab("Fold change") +
+  ggtitle("LM") +
+  geom_point(alpha = 0.7, size=3) +
+  geom_line(data = mml, aes(x = rrn_copy_LM, y = Fold_changes_LM), colour = "gray")
+LM3
+LM3= LM3 +theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank()) 
+LM3
+
+model.nls <- nls(Fold_changes_LM ~ Vm * rrn_copy_LM/(K+rrn_copy_LM), data = LM_test,   start = list(K = max(LM_test$Growth_Day_LM)/2, Vm = max(LM_test$Fold_changes_LM)))
+
+summary(model.drm)
+summary(model.nls)
+
+###BestLM/HM
+
+best_test<- read.csv("~/Documents/R_files/best_LM_HM.csv", header=T)
+best_test
+
+model.drm <- drm (Growth_Day_best ~ rrn_copy_best, data = best_test, fct = MM.2())
+
+mml <- data.frame(rrn_copy_best = seq(0, max(best_test$rrn_copy_best), length.out = 100))
+mml$Growth_Day_best <- predict(model.drm, newdata = mml)
+
+#drawing graph in ggplot
+
+best1=ggplot(best_test, aes(x = rrn_copy_best, y = Growth_Day_best, color=Phylum)) +
+  theme_bw() +
+  scale_color_manual(values = c("#0AFD37", "red", "#ffae19",
+                                "#4daf4a", "#1919ff","#990000" , "magenta",
+                                "#3295ff", "#660066", 
+                                "#32ffe7", "black"))+
+  xlab("rrn copy no.") +
+  ylab("Growth rate (per day)") +
+  ggtitle("Best (HM/LM)") +
+  geom_point(alpha = 0.7, size= 3) +
+  geom_line(data = mml, aes(x = rrn_copy_best, y = Growth_Day_best), colour = "gray")
+best1
+best1= best1 +theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank()) 
+best1
+
+
+model.nls <- nls(Growth_Day_best ~ Vm * rrn_copy_best/(K+rrn_copy_best), data = best_test,start = list(K = max(best_test$Growth_Day_best)/2, Vm = max(best_test$Growth_Day_best)))
+
+summary(model.drm)
+summary(model.nls)
+
+###Maximum
+model.drm <- drm (Max_abundance_best ~ rrn_copy_best, data = best_test, fct = MM.2())
+
+mml <- data.frame(rrn_copy_best = seq(0, max(best_test$rrn_copy_best), length.out = 100))
+mml$Max_abundance_best <- predict(model.drm, newdata = mml)
+
+#drawing graph in ggplot
+
+best2= ggplot(best_test, aes(x = rrn_copy_best, y = Max_abundance_best, color=Phylum)) +
+  theme_bw() +
+  scale_color_manual(values = c("#0AFD37", "red", "#ffae19",
+                                "#4daf4a", "#1919ff","#990000" , "magenta",
+                                "#3295ff", "#660066", 
+                                "#32ffe7", "black"))+
+  xlab("rrn copy no.") +
+  ylab("Max. abundance") +
+  ggtitle("Best (HM/LM)") +
+  geom_point(alpha = 0.7, size= 3) +
+  geom_line(data = mml, aes(x = rrn_copy_best, y = Max_abundance_best), colour = "gray")
+best2
+best2= best2 +theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank()) 
+best2
+
+model.nls <- nls(Max_abundance_best ~ Vm * rrn_copy_best/(K+rrn_copy_best), data = best_test,   start = list(K = max(best_test$Growth_Day_best)/2, Vm = max(best_test$Max_abundance_best)))
+
+summary(model.drm)
+summary(model.nls)
+
+
+#Foldchnages_HM
+model.drm <- drm (Fold_changes_best ~ rrn_copy_best, data = best_test, fct = MM.2())
+
+mml <- data.frame(rrn_copy_best = seq(0, max(best_test$rrn_copy_best), length.out = 100))
+mml$Fold_changes_best <- predict(model.drm, newdata = mml)
+
+#drawing graph in ggplot
+
+best3= ggplot(best_test, aes(x = rrn_copy_best, y = Fold_changes_best, color = Phylum)) +
+  theme_bw() +
+  scale_color_manual(values = c("#0AFD37", "red", "#ffae19",
+                                "#4daf4a", "#1919ff","#990000" , "magenta",
+                                "#3295ff", "#660066", 
+                                "#32ffe7", "black"))+
+  xlab("rrn copy no.") +
+  ylab("Fold change") +
+  ggtitle("Best (HM/LM)") +
+  geom_point(alpha = 0.7, size=3) +
+  geom_line(data = mml, aes(x = rrn_copy_best, y = Fold_changes_best), colour = "gray")
+best3
+best3= best3 +theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank()) 
+best3
+
+model.nls <- nls(Fold_changes_best ~ Vm * rrn_copy_best/(K+rrn_copy_best), data = best_test,   start = list(K = max(best_test$Growth_Day_best)/2, Vm = max(best_test$Fold_changes_best)))
+
+summary(model.drm)
+summary(model.nls)
+
+p1<- multiplot(HM1,HM2,HM3,LM1,LM2,LM3,best1,best2,best3, cols=3)
+
+##NB: Multiplot function can loaded from here: http://www.cookbook-r.com/Graphs/Multiple_graphs_on_one_page_(ggplot2)/ 
+
+```
+
+#### Line graphs (Figure 3, Figure 5, Figure 6) 
+```{r}
+#### Figure 3 (DNA)
+Fs3 <- read.csv("/file path/Figure_3_DNA_MS_3.csv",fill = TRUE, header = TRUE, sep = ",")
+library(Rmisc)
+#summarySE provides the standard deviation, standard error of the mean, and a (default 95%) confidence interval
+tgc1 <- summarySE(Fs3, measurevar="Abundance", groupvars=c("Treatment","Day","Phylum", "Treatment1", "Treatment2"))
+tgc1
+
+require(grid)
+require(plyr)
+library(ggplot2)
+
+pd <- position_dodge(0.001) # move them .05 to the left and right
+#cols <- c("No_Urea_1.0kPa" = "red","No_Urea_10kPa" = "blue","Urea_1.0kPa" = "darkgreen", "Urea_10kPa" = "orange")
+a=ggplot(tgc1, aes(x=Day, y=Abundance, group=Treatment)) + 
+  
+  facet_wrap(~Phylum, ncol = 4, scales = "free_y") +
+  
+  geom_errorbar(aes(ymin=Abundance-se, ymax=Abundance+se), colour="black", position=pd) +
+  geom_line(aes(linetype=Treatment1, colour=Treatment2),position=pd) +
+  geom_point(aes(shape=Treatment2,colour=Treatment2))+
+  
+  #geom_point(position=pd, size=1, shape=20, fill="black") + # 21 is filled circle
+  xlab("Day") +
+#  scale_x_continuous(breaks = c(0,7,14,21,35,50,63))+
+  
+  ylab("Absolute abundance") +
+  expand_limits(y=0) +                        # Expand y range
+  scale_y_continuous() +        
+  theme_bw() +
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+        strip.text.x = element_text(size=8, angle=0))  
+fig3= a+scale_color_manual(values=c("#4B0082", "#87CEEB")) 
+
+#b= a+scale_color_manual(values=c("#111111", "gray70"))  #Black and gray
+
+fig3
+#output file as pdf: ggsave("/Users/Sainur/Desktop/fig3.pdf",width=7,height=9)
+
+
+#Figure 5
+Fs5 <- read.csv("/file path/Figure_5_DNA_MS_3.csv",fill = TRUE, header = TRUE, sep = ",")
+
+tgc5 <- summarySE(Fs5, measurevar="Abundance", groupvars=c("Treatment","Day","order_OTU", "Treatment1", "Treatment2"))
+
+library(grid)
+library(plyr)
+library(ggplot2)
+
+pd <- position_dodge(0.001) # move them .05 to the left and right
+
+a=ggplot(tgc5, aes(x=Day, y=Abundance, group=Treatment)) + 
+  
+  facet_wrap(~order_OTU, ncol = 4, scales = "free_y") +
+  
+  geom_errorbar(aes(ymin=Abundance-se, ymax=Abundance+se), colour="black", position=pd) +
+  geom_line(aes(linetype=Treatment1, colour=Treatment2),position=pd) +
+  geom_point(aes(shape=Treatment2,colour=Treatment2))+
+  
+  #geom_point(position=pd, size=1, shape=20, fill="black") + # 21 is filled circle
+  xlab("Day") +
+  scale_x_continuous(breaks = c(0,7,14,21,35,50,63))+
+  
+  ylab("Absolute abundance") +
+  expand_limits(y=0) +                        # Expand y range
+  scale_y_continuous() +        
+  theme_bw() +
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+        strip.text.x = element_text(size=7, angle=0),
+        axis.text=element_text(size=8))  
+fig5= a+scale_color_manual(values=c("#4B0082", "#87CEEB")) 
+
+#b= a+scale_color_manual(values=c("#111111", "gray70"))  #Black and gray
+
+fig5
+#output file as pdf:ggsave("/Users/Sainur/Desktop/fig5.pdf",width=8,height=11)
+
+
+#Figure 6
+Fs6 <- read.csv("file path/Figure_6_DNA_MS_3.csv",fill = TRUE, header = TRUE, sep = ",")
+tgc6 <- summarySE(Fs6, measurevar="Abundance", groupvars=c("Treatment","Day","order_OTU", "Treatment1", "Treatment2"))
+
+library(Rmisc)
+# summarySE provides the standard deviation, standard error of the mean, and a (default 95%) confidence interval
+
+require(grid)
+require(plyr)
+require(ggplot2)
+
+
+pd <- position_dodge(0.001) # move them .05 to the left and right
+
+pp=ggplot(tgc6, aes(x=Day, y=Abundance, group=Treatment)) + 
+
+  facet_wrap(~order_OTU, ncol = 4, scales = "free_y") +
+  
+  geom_errorbar(aes(ymin=Abundance-se, ymax=Abundance+se), colour="black", position=pd) +
+  geom_line(aes(linetype=Treatment1, colour=Treatment2),position=pd) +
+  geom_point(aes(shape=Treatment2,colour=Treatment2))+
+
+  #geom_point(position=pd, size=1, shape=20, fill="black") + # 21 is filled circle
+  xlab("Day") +
+
+  
+  ylab("Absolute abundance") +
+  expand_limits(y=0) +                        # Expand y range
+  scale_y_continuous() +        
+  theme_bw() +
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+        strip.text.x = element_text(size=7, angle=0))  
+fig6= pp+scale_color_manual(values=c("#4B0082", "#87CEEB")) 
+
+##ppp= pp+scale_color_manual(values=c("#111111", "gray70"))  #Black and gray
+
+fig6
+#output file as pdf: ggsave("/Users/Sainur/Desktop/f6.pdf",width=9,height=4)
+
+```
